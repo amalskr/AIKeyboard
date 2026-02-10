@@ -17,7 +17,7 @@ class KeyboardViewModel : ViewModel() {
     val isShiftOn = mutableStateOf(false)
     val isConnected = mutableStateOf(true)
 
-    private val grammarChecker = GrammarChecker(BuildConfig.ANTHROPIC_API_KEY)
+    private val grammarChecker = GrammarChecker(BuildConfig.GEMINI_API_KEY)
     private var checkJob: Job? = null
 
     // ── Key handlers ───────────────────────────────────────

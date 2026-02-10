@@ -25,13 +25,13 @@ android {
             rootProject.file("local.properties").inputStream()
         )
 
-        val anthropicApiKey =
-            localProperties.getProperty("ANTHROPIC_API_KEY") ?: ""
+        val geminiApiKey =
+            localProperties.getProperty("GEMINI_API_KEY") ?: ""
 
         buildConfigField(
             "String",
-            "ANTHROPIC_API_KEY",
-            "\"$anthropicApiKey\""
+            "GEMINI_API_KEY",
+            "\"$geminiApiKey\""
         )
     }
 
