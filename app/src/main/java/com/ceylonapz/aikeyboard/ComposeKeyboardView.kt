@@ -228,12 +228,19 @@ private fun ComposeKeyboardContent(
                 bgColor = if (isChecking) Color(0xFFCC4444) else colors.Accent.copy(alpha = 0.4f)
             ) { viewModel.onGrammarCheckTapped() }
 
-            // Comma
+            // Exclamation
             KeyButton(
-                label = ",",
+                label = "!",
                 modifier = Modifier.weight(0.8f),
                 fontSize = 20
-            ) { if (!isChecking) { onCommitText(","); viewModel.sentenceBuffer.append(",") } }
+            ) { viewModel.onExclamationTyped(onCommitText) }
+
+            // Question mark
+            KeyButton(
+                label = "?",
+                modifier = Modifier.weight(0.8f),
+                fontSize = 20
+            ) { viewModel.onQuestionMarkTyped(onCommitText) }
 
             // Space bar
             Box(
@@ -256,19 +263,12 @@ private fun ComposeKeyboardContent(
                 fontSize = 22
             ) { viewModel.onPeriodTyped(onCommitText) }
 
-            // Question mark
+            // Comma
             KeyButton(
-                label = "?",
+                label = ",",
                 modifier = Modifier.weight(0.8f),
                 fontSize = 20
-            ) { viewModel.onQuestionMarkTyped(onCommitText) }
-
-            // Exclamation
-            KeyButton(
-                label = "!",
-                modifier = Modifier.weight(0.8f),
-                fontSize = 20
-            ) { viewModel.onExclamationTyped(onCommitText) }
+            ) { if (!isChecking) { onCommitText(","); viewModel.sentenceBuffer.append(",") } }
 
             // Enter
             SpecialKey(
