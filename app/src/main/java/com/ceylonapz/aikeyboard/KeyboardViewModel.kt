@@ -22,7 +22,6 @@ class KeyboardViewModel : ViewModel() {
     val isConnected = mutableStateOf(true)
 
     private val geminiClient = GeminiClient()
-    private val json = Json { ignoreUnknownKeys = true }
     private var checkJob: Job? = null
 
     // ── Key handlers ───────────────────────────────────────
@@ -93,22 +92,9 @@ class KeyboardViewModel : ViewModel() {
 
         checkJob = viewModelScope.launch {
             try {
-                // Call Gemini and get raw JSON string
-                val rawResponse = geminiClient.checkGrammar(text)
-                Log.d(TAG, "🔵 Raw response: $rawResponse")
-
-                // Clean markdown fences if Gemini adds them
-                val cleanJson = rawResponse
-                    .removePrefix("```json")
-                    .removePrefix("```")
-                    .removeSuffix("```")
-                    .trim()
-
-                Log.d(TAG, "🔵 Clean JSON: $cleanJson")
-
-                // Parse into GrammarResult
-                val result = json.decodeFromString<GrammarResult>(cleanJson)
-                Log.d(TAG, "🔵 Parsed: is_error=${result.is_error}, corrected='${result.correctedText}'")
+                // Call Gemini — returns GrammarResult directly
+                val result = geminiClient.checkGrammar(text)
+                Log.d(TAG, "🔵 Result: is_error=${result.is_error}, corrected='${result.correctedText}'")
 
                 grammarResult.value = result
                 isConnected.value = true
