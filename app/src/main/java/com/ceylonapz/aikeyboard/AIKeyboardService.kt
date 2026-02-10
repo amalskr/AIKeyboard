@@ -1,6 +1,8 @@
 package com.ceylonapz.aikeyboard
 
+import android.content.Context
 import android.inputmethodservice.InputMethodService
+import android.os.Vibrator
 import android.view.KeyEvent
 import android.view.View
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -48,6 +50,9 @@ class AIKeyboardService : InputMethodService(),
         savedStateCtrl.performRestore(null)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
+
+        @Suppress("DEPRECATION")
+        viewModel.vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
     }
 
     override fun onCreateInputView(): View {

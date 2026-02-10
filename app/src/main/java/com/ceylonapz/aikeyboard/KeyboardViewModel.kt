@@ -1,5 +1,8 @@
 package com.ceylonapz.aikeyboard
 
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -7,12 +10,24 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
 
 class KeyboardViewModel : ViewModel() {
 
     companion object {
         private const val TAG = "AIKeyboard"
+    }
+
+    var vibrator: Vibrator? = null
+
+    private fun vibrateLong() {
+        vibrator?.let {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                it.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                it.vibrate(200)
+            }
+        }
     }
 
     val sentenceBuffer = StringBuilder()
@@ -146,6 +161,7 @@ class KeyboardViewModel : ViewModel() {
                 } else {
                     "✅ Looks good!"
                 }
+                vibrateLong()
 
             } catch (e: Exception) {
                 Log.e(TAG, "🔵 Check failed: ${e.message}", e)
@@ -153,6 +169,7 @@ class KeyboardViewModel : ViewModel() {
                 grammarResult.value = null
                 statusMessage.value = "⚠️ Check failed"
                 isConnected.value = false
+                vibrateLong()
             } finally {
                 isChecking.value = false
             }
