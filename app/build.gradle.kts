@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -18,9 +20,19 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        val anthropicApiKey: String =
-            project.findProperty("ANTHROPIC_API_KEY") as String? ?: ""
-        buildConfigField("String", "ANTHROPIC_API_KEY", "\"$anthropicApiKey\"")
+        val localProperties = Properties()
+        localProperties.load(
+            rootProject.file("local.properties").inputStream()
+        )
+
+        val anthropicApiKey =
+            localProperties.getProperty("ANTHROPIC_API_KEY") ?: ""
+
+        buildConfigField(
+            "String",
+            "ANTHROPIC_API_KEY",
+            "\"$anthropicApiKey\""
+        )
     }
 
     buildTypes {
