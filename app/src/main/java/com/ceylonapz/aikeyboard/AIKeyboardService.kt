@@ -3,8 +3,10 @@ package com.ceylonapz.aikeyboard
 import android.inputmethodservice.InputMethodService
 import android.view.KeyEvent
 import android.view.View
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -56,7 +58,7 @@ class AIKeyboardService : InputMethodService(),
 
             setContent {
                 MaterialTheme(
-                    colorScheme = darkColorScheme()
+                    colorScheme = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()
                 ) {
                     ComposeKeyboard(
                         viewModel = viewModel,

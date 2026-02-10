@@ -18,22 +18,59 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 // ── Color Theme ────────────────────────────────────────────
+data class KeyboardColorScheme(
+    val Bg: Color,
+    val KeyBg: Color,
+    val KeyPressed: Color,
+    val KeyText: Color,
+    val Accent: Color,
+    val SuggestionBg: Color,
+    val CorrectGreen: Color,
+    val ErrorBg: Color,
+    val StatusGray: Color,
+    val DimText: Color,
+    val EmojiRowBg: Color
+)
+
+private val DarkKeyboardColors = KeyboardColorScheme(
+    Bg = Color(0xFF1A1A2E),
+    KeyBg = Color(0xFF16213E),
+    KeyPressed = Color(0xFF0F3460),
+    KeyText = Color(0xFFE0E0E0),
+    Accent = Color(0xFF7C5CFC),
+    SuggestionBg = Color(0xFF1A2E1A),
+    CorrectGreen = Color(0xFF66BB6A),
+    ErrorBg = Color(0xFF2E1A1A),
+    StatusGray = Color(0xFF888899),
+    DimText = Color(0xFF555566),
+    EmojiRowBg = Color(0xFF1E1E3A)
+)
+
+private val LightKeyboardColors = KeyboardColorScheme(
+    Bg = Color(0xFFE8E8EE),
+    KeyBg = Color(0xFFFFFFFF),
+    KeyPressed = Color(0xFFD0D0DA),
+    KeyText = Color(0xFF1A1A2E),
+    Accent = Color(0xFF6B4CE6),
+    SuggestionBg = Color(0xFFDFF5DF),
+    CorrectGreen = Color(0xFF388E3C),
+    ErrorBg = Color(0xFFFDE8E8),
+    StatusGray = Color(0xFF666677),
+    DimText = Color(0xFF999AAA),
+    EmojiRowBg = Color(0xFFDDDDE8)
+)
+
+val LocalKeyboardColors = staticCompositionLocalOf { DarkKeyboardColors }
+
 object KeyboardColors {
-    val Bg = Color(0xFF1A1A2E)
-    val KeyBg = Color(0xFF16213E)
-    val KeyPressed = Color(0xFF0F3460)
-    val KeyText = Color(0xFFE0E0E0)
-    val Accent = Color(0xFF7C5CFC)
-    val SuggestionBg = Color(0xFF1A2E1A)
-    val CorrectGreen = Color(0xFF66BB6A)
-    val ErrorBg = Color(0xFF2E1A1A)
-    val StatusGray = Color(0xFF888899)
-    val DimText = Color(0xFF555566)
+    val current: KeyboardColorScheme
+        @Composable get() = LocalKeyboardColors.current
 }
 
 val NUMBER_ROW = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
@@ -50,6 +87,22 @@ fun ComposeKeyboard(
     onSendEnter: () -> Unit,
     onDeleteSurrounding: (Int) -> Unit
 ) {
+    val colors = if (isSystemInDarkTheme()) DarkKeyboardColors else LightKeyboardColors
+
+    CompositionLocalProvider(LocalKeyboardColors provides colors) {
+        ComposeKeyboardContent(viewModel, onCommitText, onDeleteOne, onSendEnter, onDeleteSurrounding)
+    }
+}
+
+@Composable
+private fun ComposeKeyboardContent(
+    viewModel: KeyboardViewModel,
+    onCommitText: (String) -> Unit,
+    onDeleteOne: () -> Unit,
+    onSendEnter: () -> Unit,
+    onDeleteSurrounding: (Int) -> Unit
+) {
+    val colors = KeyboardColors.current
     val result by viewModel.grammarResult
     val status by viewModel.statusMessage
     val isChecking by viewModel.isChecking
@@ -59,7 +112,7 @@ fun ComposeKeyboard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(KeyboardColors.Bg)
+            .background(colors.Bg)
             .padding(horizontal = 3.dp, vertical = 4.dp)
     ) {
         // ── Emoji Suggestion Row ────────────────────────────
@@ -107,14 +160,14 @@ fun ComposeKeyboard(
                     CircularProgressIndicator(
                         modifier = Modifier.size(12.dp),
                         strokeWidth = 2.dp,
-                        color = KeyboardColors.Accent
+                        color = colors.Accent
                     )
                     Spacer(Modifier.width(8.dp))
                 }
                 Text(
                     text = status,
-                    color = if (status.contains("✅")) KeyboardColors.CorrectGreen
-                    else KeyboardColors.StatusGray,
+                    color = if (status.contains("✅")) colors.CorrectGreen
+                    else colors.StatusGray,
                     fontSize = 12.sp
                 )
             }
@@ -145,7 +198,7 @@ fun ComposeKeyboard(
             SpecialKey(
                 label = if (isShift) "⇧" else "⇪",
                 weight = 1.4f,
-                bgColor = if (isShift) KeyboardColors.Accent else KeyboardColors.KeyBg
+                bgColor = if (isShift) colors.Accent else colors.KeyBg
             ) { viewModel.onShiftToggle() }
 
             ROW3.forEach { key ->
@@ -172,7 +225,7 @@ fun ComposeKeyboard(
             SpecialKey(
                 label = if (isChecking) "■" else "✓ AI",
                 weight = 1.3f,
-                bgColor = if (isChecking) Color(0xFFCC4444) else KeyboardColors.Accent.copy(alpha = 0.4f)
+                bgColor = if (isChecking) Color(0xFFCC4444) else colors.Accent.copy(alpha = 0.4f)
             ) { viewModel.onGrammarCheckTapped() }
 
             // Comma
@@ -189,11 +242,11 @@ fun ComposeKeyboard(
                     .height(48.dp)
                     .padding(horizontal = 2.dp, vertical = 2.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(KeyboardColors.KeyBg)
+                    .background(colors.KeyBg)
                     .clickable { viewModel.onSpaceTyped(onCommitText) },
                 contentAlignment = Alignment.Center
             ) {
-                Text("space", color = KeyboardColors.DimText, fontSize = 13.sp)
+                Text("space", color = colors.DimText, fontSize = 13.sp)
             }
 
             // Period
@@ -221,7 +274,7 @@ fun ComposeKeyboard(
             SpecialKey(
                 label = "↵",
                 weight = 1.3f,
-                bgColor = KeyboardColors.Accent
+                bgColor = colors.Accent
             ) { viewModel.onEnter(onSendEnter) }
         }
     }
@@ -234,23 +287,24 @@ fun GrammarSuggestionBar(
     onAccept: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val colors = KeyboardColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 6.dp, vertical = 4.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(KeyboardColors.ErrorBg)
+            .background(colors.ErrorBg)
             .padding(10.dp)
     ) {
         // Original text label
         Text(
             text = "Original:",
-            color = KeyboardColors.StatusGray,
+            color = colors.StatusGray,
             fontSize = 10.sp
         )
         Text(
             text = result.originalText,
-            color = KeyboardColors.StatusGray,
+            color = colors.StatusGray,
             fontSize = 13.sp
         )
 
@@ -259,19 +313,19 @@ fun GrammarSuggestionBar(
         // Corrected text preview
         Text(
             text = "Suggested:",
-            color = KeyboardColors.StatusGray,
+            color = colors.StatusGray,
             fontSize = 10.sp
         )
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(8.dp))
-                .background(KeyboardColors.SuggestionBg)
+                .background(colors.SuggestionBg)
                 .padding(8.dp)
         ) {
             Text(
                 text = result.correctedText,
-                color = KeyboardColors.CorrectGreen,
+                color = colors.CorrectGreen,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -285,13 +339,13 @@ fun GrammarSuggestionBar(
             horizontalArrangement = Arrangement.End
         ) {
             TextButton(onClick = onDismiss) {
-                Text("Ignore", color = KeyboardColors.StatusGray, fontSize = 12.sp)
+                Text("Ignore", color = colors.StatusGray, fontSize = 12.sp)
             }
             Spacer(Modifier.width(8.dp))
             Button(
                 onClick = onAccept,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = KeyboardColors.Accent
+                    containerColor = colors.Accent
                 ),
                 shape = RoundedCornerShape(8.dp),
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp)
@@ -308,12 +362,13 @@ fun EmojiSuggestionRow(
     emojis: List<String>,
     onEmojiSelected: (String) -> Unit
 ) {
+    val colors = KeyboardColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 6.dp, vertical = 2.dp)
             .clip(RoundedCornerShape(6.dp))
-            .background(Color(0xFF1E1E3A))
+            .background(colors.EmojiRowBg)
             .padding(horizontal = 6.dp, vertical = 3.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
@@ -324,7 +379,7 @@ fun EmojiSuggestionRow(
                     .padding(horizontal = 6.dp)
                     .size(30.dp)
                     .clip(RoundedCornerShape(6.dp))
-                    .background(KeyboardColors.Accent.copy(alpha = 0.15f))
+                    .background(colors.Accent.copy(alpha = 0.15f))
                     .clickable { onEmojiSelected(emoji) },
                 contentAlignment = Alignment.Center
             ) {
@@ -364,10 +419,11 @@ fun KeyRow(
 fun KeyButton(
     label: String,
     modifier: Modifier = Modifier,
-    bgColor: Color = KeyboardColors.KeyBg,
+    bgColor: Color = KeyboardColors.current.KeyBg,
     fontSize: Int = 18,
     onClick: () -> Unit
 ) {
+    val colors = KeyboardColors.current
     val haptic = LocalHapticFeedback.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -377,7 +433,7 @@ fun KeyButton(
             .height(48.dp)
             .padding(2.dp)
             .clip(RoundedCornerShape(6.dp))
-            .background(if (isPressed) KeyboardColors.KeyPressed else bgColor)
+            .background(if (isPressed) colors.KeyPressed else bgColor)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null
@@ -389,7 +445,7 @@ fun KeyButton(
     ) {
         Text(
             text = label,
-            color = KeyboardColors.KeyText,
+            color = colors.KeyText,
             fontSize = fontSize.sp,
             textAlign = TextAlign.Center,
             maxLines = 1,
@@ -402,9 +458,10 @@ fun KeyButton(
 fun RowScope.SpecialKey(
     label: String,
     weight: Float,
-    bgColor: Color = KeyboardColors.KeyBg,
+    bgColor: Color = KeyboardColors.current.KeyBg,
     onClick: () -> Unit
 ) {
+    val colors = KeyboardColors.current
     val haptic = LocalHapticFeedback.current
     Box(
         modifier = Modifier
@@ -419,6 +476,6 @@ fun RowScope.SpecialKey(
             },
         contentAlignment = Alignment.Center
     ) {
-        Text(label, color = KeyboardColors.KeyText, fontSize = 16.sp)
+        Text(label, color = colors.KeyText, fontSize = 16.sp)
     }
 }
