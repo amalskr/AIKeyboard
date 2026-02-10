@@ -124,8 +124,7 @@ fun ComposeKeyboard(
 
         // ── Number Row: 1234567890 ────────────────────────────
         KeyRow(NUMBER_ROW, isShift = false) { char ->
-            onCommitText(char.toString())
-            viewModel.sentenceBuffer.append(char)
+            viewModel.onCharTyped(char, onCommitText)
         }
 
         // ── Row 1: QWERTYUIOP ──────────────────────────────
@@ -169,11 +168,11 @@ fun ComposeKeyboard(
                 .padding(vertical = 2.dp),
             horizontalArrangement = Arrangement.Center
         ) {
-            // Grammar check button
+            // Grammar check / stop button
             SpecialKey(
-                label = "✓ AI",
+                label = if (isChecking) "■" else "✓ AI",
                 weight = 1.3f,
-                bgColor = KeyboardColors.Accent.copy(alpha = 0.4f)
+                bgColor = if (isChecking) Color(0xFFCC4444) else KeyboardColors.Accent.copy(alpha = 0.4f)
             ) { viewModel.onGrammarCheckTapped() }
 
             // Comma
@@ -181,7 +180,7 @@ fun ComposeKeyboard(
                 label = ",",
                 modifier = Modifier.weight(0.8f),
                 fontSize = 20
-            ) { onCommitText(","); viewModel.sentenceBuffer.append(",") }
+            ) { if (!isChecking) { onCommitText(","); viewModel.sentenceBuffer.append(",") } }
 
             // Space bar
             Box(

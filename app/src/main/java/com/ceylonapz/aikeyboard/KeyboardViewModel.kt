@@ -28,25 +28,36 @@ class KeyboardViewModel : ViewModel() {
 
     // ── Key handlers ───────────────────────────────────────
     fun onPeriodTyped(commitText: (String) -> Unit) {
+        if (isChecking.value) return
         commitText(".")
         sentenceBuffer.append(".")
     }
 
     fun onQuestionMarkTyped(commitText: (String) -> Unit) {
+        if (isChecking.value) return
         commitText("?")
         sentenceBuffer.append("?")
     }
 
     fun onExclamationTyped(commitText: (String) -> Unit) {
+        if (isChecking.value) return
         commitText("!")
         sentenceBuffer.append("!")
     }
 
     fun onGrammarCheckTapped() {
-        triggerGrammarCheck()
+        if (isChecking.value) {
+            // Stop the ongoing check and re-enable typing
+            checkJob?.cancel()
+            isChecking.value = false
+            statusMessage.value = ""
+        } else {
+            triggerGrammarCheck()
+        }
     }
 
     fun onCharTyped(char: Char, commitText: (String) -> Unit) {
+        if (isChecking.value) return
         val c = if (isShiftOn.value) char.uppercaseChar() else char.lowercaseChar()
         commitText(c.toString())
         sentenceBuffer.append(c)
@@ -54,12 +65,14 @@ class KeyboardViewModel : ViewModel() {
     }
 
     fun onSpaceTyped(commitText: (String) -> Unit) {
+        if (isChecking.value) return
         commitText(" ")
         sentenceBuffer.append(" ")
         updateEmojiSuggestions()
     }
 
     fun onDeleteTyped(deleteOne: () -> Unit) {
+        if (isChecking.value) return
         deleteOne()
         if (sentenceBuffer.isNotEmpty()) {
             sentenceBuffer.deleteCharAt(sentenceBuffer.length - 1)
@@ -74,6 +87,7 @@ class KeyboardViewModel : ViewModel() {
     }
 
     fun onEnter(sendEnter: () -> Unit) {
+        if (isChecking.value) return
         sendEnter()
         sentenceBuffer.clear()
         grammarResult.value = null
