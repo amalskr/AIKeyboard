@@ -41,11 +41,25 @@ jobs:
           VERSION_CODE=$(grep -oP 'versionCode\s*=\s*\K\d+' app/build.gradle.kts)
           VERSION_NAME=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
           APK_NAME="v${VERSION_CODE}(${VERSION_NAME})_live.apk"
+          TAG="v${VERSION_NAME}-build.${VERSION_CODE}.$(echo ${{ github.sha }} | cut -c1-7)"
           cp app/build/outputs/apk/production/release/app-production-release.apk "app/build/outputs/apk/production/release/${APK_NAME}"
           echo "apk_name=${APK_NAME}" >> $GITHUB_OUTPUT
+          echo "version_name=${VERSION_NAME}" >> $GITHUB_OUTPUT
+          echo "version_code=${VERSION_CODE}" >> $GITHUB_OUTPUT
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
       - name: Upload production APK
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.version.outputs.apk_name }}
           path: app/build/outputs/apk/production/release/${{ steps.version.outputs.apk_name }}
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            "app/build/outputs/apk/production/release/${{ steps.version.outputs.apk_name }}" \
+            --title "Dev Build v${{ steps.version.outputs.version_name }} (${{ steps.version.outputs.version_code }})" \
+            --notes "Development build from \`${{ github.sha }}\`" \
+            --prerelease
