@@ -192,7 +192,7 @@ private fun ComposeKeyboardContent(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 2.dp),
+                .padding(vertical = 3.dp),
             horizontalArrangement = Arrangement.Center
         ) {
             SpecialKey(
@@ -218,7 +218,7 @@ private fun ComposeKeyboardContent(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 2.dp),
+                .padding(vertical = 3.dp),
             horizontalArrangement = Arrangement.Center
         ) {
             // Grammar check / stop button
@@ -239,8 +239,8 @@ private fun ComposeKeyboardContent(
             Box(
                 modifier = Modifier
                     .weight(3.5f)
-                    .height(48.dp)
-                    .padding(horizontal = 2.dp, vertical = 2.dp)
+                    .height(52.dp)
+                    .padding(horizontal = 3.dp, vertical = 3.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .background(colors.KeyBg)
                     .clickable { viewModel.onSpaceTyped(onCommitText) },
@@ -403,7 +403,7 @@ fun KeyRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = sidePadding, vertical = 2.dp),
+            .padding(horizontal = sidePadding, vertical = 3.dp),
         horizontalArrangement = Arrangement.Center
     ) {
         keys.forEach { key ->
@@ -430,8 +430,8 @@ fun KeyButton(
 
     Box(
         modifier = modifier
-            .height(48.dp)
-            .padding(2.dp)
+            .height(52.dp)
+            .padding(3.dp)
             .clip(RoundedCornerShape(6.dp))
             .background(if (isPressed) colors.KeyPressed else bgColor)
             .clickable(
@@ -466,8 +466,8 @@ fun RowScope.SpecialKey(
     Box(
         modifier = Modifier
             .weight(weight)
-            .height(48.dp)
-            .padding(2.dp)
+            .height(52.dp)
+            .padding(3.dp)
             .clip(RoundedCornerShape(6.dp))
             .background(bgColor)
             .clickable {
