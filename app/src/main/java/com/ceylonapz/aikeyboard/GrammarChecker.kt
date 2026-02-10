@@ -1,23 +1,13 @@
 package com.ceylonapz.aikeyboard
 
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 
-private val TAG  ="AiKeyboard"
 class GrammarChecker(apiKey: String) {
 
     private val api = ClaudeApiService.create(apiKey)
     private val json = Json { ignoreUnknownKeys = true }
-
-    init {
-        Log.d(TAG, "══════════════════════════════════════")
-        Log.d(TAG, "GrammarChecker initialized")
-        Log.d(TAG, "API Key present: ${apiKey.isNotBlank()}")
-        Log.d(TAG, "API Key prefix: ${apiKey.take(10)}...")
-        Log.d(TAG, "══════════════════════════════════════")
-    }
 
     companion object {
         private const val SYSTEM_PROMPT = """
@@ -28,14 +18,6 @@ JSON format:
 {
   "corrected": "The corrected sentence here",
   "has_errors": true,
-  "errors": [
-    {
-      "type": "grammar|spelling|punctuation|style",
-      "original": "the wrong part",
-      "fixed": "the corrected part",
-      "explanation": "Brief explanation"
-    }
-  ]
 }
 
 Rules:
