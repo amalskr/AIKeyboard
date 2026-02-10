@@ -123,7 +123,7 @@ fun SetupScreen() {
                 color = titleColor
             )
             Text(
-                "Powered by Claude",
+                "Powered by AI",
                 fontSize = 14.sp,
                 color = subtitleColor
             )
