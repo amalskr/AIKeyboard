@@ -7,6 +7,7 @@ import android.view.inputmethod.InputMethodManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,8 +19,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
@@ -57,12 +60,21 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun SetupScreen() {
     val ctx = LocalContext.current
+    val isDark = isSystemInDarkTheme()
     val isEnabled = remember { mutableStateOf(false) }
     val isSelected = remember { mutableStateOf(false) }
 
+    val bgGradient = if (isDark) {
+        listOf(Color(0xFF0F0F23), Color(0xFF1A1A3E))
+    } else {
+        listOf(Color(0xFFF0F0F8), Color(0xFFE8E8F0))
+    }
+    val titleColor = if (isDark) Color.White else Color(0xFF1A1A2E)
+    val subtitleColor = if (isDark) Color(0xFF888899) else Color(0xFF666677)
+    val accent = Color(0xFF7C5CFC)
+
     // Check keyboard status when screen resumes
     LaunchedEffect(Unit) {
-        val imm = ctx.getSystemService(InputMethodManager::class.java)
         val myId = "${ctx.packageName}/.AIKeyboardService"
         isEnabled.value = Settings.Secure.getString(
             ctx.contentResolver,
@@ -77,15 +89,12 @@ fun SetupScreen() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFF0F0F23), Color(0xFF1A1A3E))
-                )
-            )
+            .background(Brush.verticalGradient(bgGradient))
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -97,7 +106,7 @@ fun SetupScreen() {
                     .clip(CircleShape)
                     .background(
                         Brush.linearGradient(
-                            listOf(Color(0xFF7C5CFC), Color(0xFF9D84FF))
+                            listOf(accent, Color(0xFF9D84FF))
                         )
                     ),
                 contentAlignment = Alignment.Center
@@ -111,12 +120,12 @@ fun SetupScreen() {
                 "AI Grammar Keyboard",
                 fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = titleColor
             )
             Text(
                 "Powered by Claude",
                 fontSize = 14.sp,
-                color = Color(0xFF888899)
+                color = subtitleColor
             )
 
             Spacer(Modifier.height(48.dp))
@@ -128,6 +137,7 @@ fun SetupScreen() {
                 description = "Turn on AI Grammar Keyboard in system settings",
                 isDone = isEnabled.value,
                 buttonText = if (isEnabled.value) "Enabled ✓" else "Open Settings",
+                isDark = isDark,
                 onClick = {
                     ctx.startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
                 }
@@ -143,6 +153,7 @@ fun SetupScreen() {
                 isDone = isSelected.value,
                 buttonText = if (isSelected.value) "Selected ✓" else "Choose Keyboard",
                 enabled = isEnabled.value,
+                isDark = isDark,
                 onClick = {
                     val imm = ctx.getSystemService(InputMethodManager::class.java)
                     imm.showInputMethodPicker()
@@ -159,6 +170,7 @@ fun SetupScreen() {
                 isDone = false,
                 buttonText = "Open any app and type!",
                 enabled = isSelected.value,
+                isDark = isDark,
                 onClick = { }
             )
 
@@ -178,7 +190,7 @@ fun SetupScreen() {
                     )?.contains(myId) == true
                 },
                 colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = Color(0xFF888899)
+                    contentColor = subtitleColor
                 )
             ) {
                 Text("↻ Refresh Status")
@@ -195,10 +207,18 @@ fun SetupStep(
     isDone: Boolean,
     buttonText: String,
     enabled: Boolean = true,
+    isDark: Boolean = true,
     onClick: () -> Unit
 ) {
     val accent = Color(0xFF7C5CFC)
-    val bg = if (isDone) Color(0xFF1A2E1A) else Color(0xFF16213E)
+    val bg = if (isDone) {
+        if (isDark) Color(0xFF1A2E1A) else Color(0xFFDFF5DF)
+    } else {
+        if (isDark) Color(0xFF16213E) else Color(0xFFFFFFFF)
+    }
+    val titleColor = if (isDark) Color.White else Color(0xFF1A1A2E)
+    val descColor = if (isDark) Color(0xFF888899) else Color(0xFF666677)
+    val disabledBg = if (isDark) Color(0xFF333344) else Color(0xFFCCCCDD)
 
     Row(
         modifier = Modifier
@@ -231,13 +251,13 @@ fun SetupStep(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 title,
-                color = Color.White,
+                color = titleColor,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 16.sp
             )
             Text(
                 description,
-                color = Color(0xFF888899),
+                color = descColor,
                 fontSize = 12.sp
             )
             Spacer(Modifier.height(8.dp))
@@ -249,7 +269,7 @@ fun SetupStep(
                     enabled = enabled && !isDone,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = accent,
-                        disabledContainerColor = Color(0xFF333344)
+                        disabledContainerColor = disabledBg
                     ),
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.fillMaxWidth()
