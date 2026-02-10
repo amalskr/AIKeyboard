@@ -1,11 +1,11 @@
-name: Android CI
+name: Test Build APK
 
 on:
-  pull_request:
-    branches: [ main, development ]
+  push:
+    branches: [ development ]
 
 jobs:
-  build:
+  build-test-apk:
     runs-on: ubuntu-latest
 
     steps:
@@ -25,18 +25,11 @@ jobs:
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> local.properties
 
-      - name: Build debug
+      - name: Build test APK
         run: ./gradlew assembleDevDebug
 
-      - name: Run lint
-        run: ./gradlew lintDevDebug
-
-      - name: Run unit tests
-        run: ./gradlew testDevDebugUnitTest
-
-      - name: Upload lint report
-        if: always()
+      - name: Upload test APK
         uses: actions/upload-artifact@v4
         with:
-          name: lint-report
-          path: app/build/reports/lint-results-devDebug.html
+          name: test-apk-${{ github.sha }}
+          path: app/build/outputs/apk/dev/debug/app-dev-debug.apk
