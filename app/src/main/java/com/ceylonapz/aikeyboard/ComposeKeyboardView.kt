@@ -53,6 +53,7 @@ fun ComposeKeyboard(
     val status by viewModel.statusMessage
     val isChecking by viewModel.isChecking
     val isShift by viewModel.isShiftOn
+    val emojis by viewModel.emojiSuggestions
 
     Column(
         modifier = Modifier
@@ -60,6 +61,20 @@ fun ComposeKeyboard(
             .background(KeyboardColors.Bg)
             .padding(horizontal = 3.dp, vertical = 4.dp)
     ) {
+        // ── Emoji Suggestion Row ────────────────────────────
+        AnimatedVisibility(
+            visible = emojis.isNotEmpty(),
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            EmojiSuggestionRow(
+                emojis = emojis,
+                onEmojiSelected = { emoji ->
+                    viewModel.onEmojiSelected(emoji, onCommitText)
+                }
+            )
+        }
+
         // ── Grammar Suggestion Bar ─────────────────────────
         AnimatedVisibility(
             visible = result != null && result!!.is_error,
@@ -272,6 +287,41 @@ fun GrammarSuggestionBar(
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp)
             ) {
                 Text("Apply Fix ✓", fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+// ── Emoji Suggestion Row ────────────────────────────────
+@Composable
+fun EmojiSuggestionRow(
+    emojis: List<String>,
+    onEmojiSelected: (String) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 6.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0xFF1E1E3A))
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        emojis.forEach { emoji ->
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 8.dp)
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(KeyboardColors.Accent.copy(alpha = 0.15f))
+                    .clickable { onEmojiSelected(emoji) },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = emoji,
+                    fontSize = 24.sp
+                )
             }
         }
     }

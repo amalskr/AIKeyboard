@@ -22,6 +22,8 @@ class KeyboardViewModel : ViewModel() {
     val isConnected = mutableStateOf(true)
 
     private val geminiClient = GeminiClient()
+    private val emojiSuggester = EmojiSuggester()
+    val emojiSuggestions = mutableStateOf<List<String>>(emptyList())
     private var checkJob: Job? = null
 
     // ── Key handlers ───────────────────────────────────────
@@ -53,6 +55,7 @@ class KeyboardViewModel : ViewModel() {
     fun onSpaceTyped(commitText: (String) -> Unit) {
         commitText(" ")
         sentenceBuffer.append(" ")
+        updateEmojiSuggestions()
     }
 
     fun onDeleteTyped(deleteOne: () -> Unit) {
@@ -62,6 +65,7 @@ class KeyboardViewModel : ViewModel() {
         }
         grammarResult.value = null
         statusMessage.value = ""
+        emojiSuggestions.value = emptyList()
     }
 
     fun onShiftToggle() {
@@ -134,5 +138,20 @@ class KeyboardViewModel : ViewModel() {
     fun dismissSuggestion() {
         grammarResult.value = null
         statusMessage.value = ""
+    }
+
+    // ── Emoji suggestion for last word ─────────────────────
+    private fun updateEmojiSuggestions() {
+        val text = sentenceBuffer.toString().trimEnd()
+        val lastWord = text.split(" ").lastOrNull() ?: ""
+        Log.d(TAG, "🟡 Emoji check for word: '$lastWord'")
+        emojiSuggestions.value = emojiSuggester.suggest(lastWord)
+        Log.d(TAG, "🟡 Emoji suggestions: ${emojiSuggestions.value}")
+    }
+
+    fun onEmojiSelected(emoji: String, commitText: (String) -> Unit) {
+        commitText("$emoji ")
+        sentenceBuffer.append("$emoji ")
+        emojiSuggestions.value = emptyList()
     }
 }
