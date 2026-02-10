@@ -1,6 +1,5 @@
 package com.ceylonapz.aikeyboard
 
-
 import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -9,6 +8,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class KeyboardViewModel : ViewModel() {
+
+    companion object {
+        private const val TAG = "AIKeyboard"
+    }
 
     val sentenceBuffer = StringBuilder()
     val grammarResult = mutableStateOf<GrammarResult?>(null)
@@ -56,7 +59,6 @@ class KeyboardViewModel : ViewModel() {
         if (sentenceBuffer.isNotEmpty()) {
             sentenceBuffer.deleteCharAt(sentenceBuffer.length - 1)
         }
-        // Clear suggestion if user is editing
         grammarResult.value = null
         statusMessage.value = ""
     }
@@ -72,32 +74,38 @@ class KeyboardViewModel : ViewModel() {
         statusMessage.value = ""
     }
 
-    // ── Grammar Check via Claude API ───────────────────────
+    // ── Grammar Check via Gemini API ───────────────────────
     private fun triggerGrammarCheck() {
         val text = sentenceBuffer.toString().trim()
+        Log.d(TAG, "🔵 Punctuation typed! Buffer: '$text'")
 
-        Log.d("AIKeyboard", "Checking: '$text'")
+        if (text.length < 4) {
+            Log.d(TAG, "🔵 Too short (${text.length} chars), skipping")
+            return
+        }
 
-        if (text.length < 4) return
-
-        // Cancel previous check if still running
         checkJob?.cancel()
-
         isChecking.value = true
         statusMessage.value = "🔍 Checking grammar..."
+        Log.d(TAG, "🔵 Starting Gemini grammar check...")
 
         checkJob = viewModelScope.launch {
             try {
                 val result = grammarChecker.check(text)
+                Log.d(
+                    TAG,
+                    "🔵 Result: hasErrors=${result.hasErrors}, corrected='${result.correctedText}'"
+                )
+
                 grammarResult.value = result
                 isConnected.value = true
-
                 statusMessage.value = if (result.hasErrors) {
                     "✏️ ${result.errors.size} issue(s) found"
                 } else {
                     "✅ Looks good!"
                 }
             } catch (e: Exception) {
+                Log.e(TAG, "🔵 Check failed", e)
                 statusMessage.value = "⚠️ Offline — check skipped"
                 isConnected.value = false
             } finally {
@@ -112,6 +120,7 @@ class KeyboardViewModel : ViewModel() {
         commitText: (String) -> Unit
     ) {
         val result = grammarResult.value ?: return
+        Log.d(TAG, "🟢 Applying fix: '${result.originalText}' → '${result.correctedText}'")
         deleteSurrounding(result.originalText.length)
         commitText(result.correctedText)
         sentenceBuffer.clear()
