@@ -30,6 +30,15 @@ class AIKeyboardService : InputMethodService(),
     override val savedStateRegistry: SavedStateRegistry
         get() = savedStateCtrl.savedStateRegistry
 
+    private fun installLifecycleOwner() {
+        val decorView = window?.window?.decorView
+        decorView?.let {
+            it.setViewTreeLifecycleOwner(this)
+            it.setViewTreeViewModelStoreOwner(this)
+            it.setViewTreeSavedStateRegistryOwner(this)
+        }
+    }
+
     private val viewModel by lazy { KeyboardViewModel() }
 
     override fun onCreate() {
@@ -40,10 +49,10 @@ class AIKeyboardService : InputMethodService(),
     }
 
     override fun onCreateInputView(): View {
+        installLifecycleOwner()  // ← called HERE, before ComposeView
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
+
         val composeView = ComposeView(this).apply {
-            setViewTreeLifecycleOwner(this@AIKeyboardService)
-            setViewTreeViewModelStoreOwner(this@AIKeyboardService)
-            setViewTreeSavedStateRegistryOwner(this@AIKeyboardService)
 
             setContent {
                 MaterialTheme(
