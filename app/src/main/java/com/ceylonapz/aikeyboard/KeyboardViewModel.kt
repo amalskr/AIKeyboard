@@ -42,6 +42,7 @@ class KeyboardViewModel : ViewModel() {
     val emojiSuggestions = mutableStateOf<List<String>>(emptyList())
     private var checkJob: Job? = null
     private var statusJob: Job? = null
+    private var autoDismissJob: Job? = null
 
     private val checkingMessages = listOf(
         "🔍 Analyzing text...",
@@ -161,6 +162,7 @@ class KeyboardViewModel : ViewModel() {
                 } else {
                     "✅ Looks good!"
                 }
+                if (!result.is_error) autoDismissStatus()
                 vibrateLong()
 
             } catch (e: Exception) {
@@ -189,6 +191,15 @@ class KeyboardViewModel : ViewModel() {
         sentenceBuffer.append(result.correctedText)
         grammarResult.value = null
         statusMessage.value = "✅ Corrected!"
+        autoDismissStatus()
+    }
+
+    private fun autoDismissStatus(delayMs: Long = 2000L) {
+        autoDismissJob?.cancel()
+        autoDismissJob = viewModelScope.launch {
+            delay(delayMs)
+            statusMessage.value = ""
+        }
     }
 
     fun dismissSuggestion() {
