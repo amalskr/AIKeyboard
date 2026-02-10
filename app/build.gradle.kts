@@ -6,6 +6,11 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+val localProperties = Properties()
+localProperties.load(
+    rootProject.file("local.properties").inputStream()
+)
+
 android {
     namespace = "com.ceylonapz.aikeyboard"
     compileSdk {
@@ -21,11 +26,6 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        val localProperties = Properties()
-        localProperties.load(
-            rootProject.file("local.properties").inputStream()
-        )
-
         val geminiApiKey =
             localProperties.getProperty("GEMINI_API_KEY") ?: ""
 
@@ -38,10 +38,10 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file("keystore/ai_gammer.jks")
-            storePassword = "amal@2026"
-            keyAlias = "AiGrammarCheck"
-            keyPassword = "amal@2026"
+            storeFile = file(localProperties.getProperty("KEYSTORE_FILE"))
+            storePassword = localProperties.getProperty("KEYSTORE_PASSWORD")
+            keyAlias = localProperties.getProperty("KEY_ALIAS")
+            keyPassword = localProperties.getProperty("KEY_PASSWORD")
         }
     }
 
