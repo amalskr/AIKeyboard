@@ -36,18 +36,24 @@ android {
         )
     }
 
-    signingConfigs {
-        create("release") {
-            storeFile = file(localProperties.getProperty("KEYSTORE_FILE"))
-            storePassword = localProperties.getProperty("KEYSTORE_PASSWORD")
-            keyAlias = localProperties.getProperty("KEY_ALIAS")
-            keyPassword = localProperties.getProperty("KEY_PASSWORD")
+    val keystoreFile = localProperties.getProperty("KEYSTORE_FILE")
+
+    if (keystoreFile != null) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(keystoreFile)
+                storePassword = localProperties.getProperty("KEYSTORE_PASSWORD")
+                keyAlias = localProperties.getProperty("KEY_ALIAS")
+                keyPassword = localProperties.getProperty("KEY_PASSWORD")
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            if (keystoreFile != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
