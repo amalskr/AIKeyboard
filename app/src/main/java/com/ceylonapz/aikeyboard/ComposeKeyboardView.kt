@@ -36,6 +36,7 @@ object KeyboardColors {
     val DimText = Color(0xFF555566)
 }
 
+val NUMBER_ROW = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
 val ROW1 = listOf("q", "w", "e", "r", "t", "y", "u", "i", "o", "p")
 val ROW2 = listOf("a", "s", "d", "f", "g", "h", "j", "k", "l")
 val ROW3 = listOf("z", "x", "c", "v", "b", "n", "m")
@@ -120,6 +121,12 @@ fun ComposeKeyboard(
         }
 
         Spacer(Modifier.height(2.dp))
+
+        // ── Number Row: 1234567890 ────────────────────────────
+        KeyRow(NUMBER_ROW, isShift = false) { char ->
+            onCommitText(char.toString())
+            viewModel.sentenceBuffer.append(char)
+        }
 
         // ── Row 1: QWERTYUIOP ──────────────────────────────
         KeyRow(ROW1, isShift) { viewModel.onCharTyped(it, onCommitText) }
