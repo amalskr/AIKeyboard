@@ -301,26 +301,26 @@ fun EmojiSuggestionRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 6.dp, vertical = 4.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+            .clip(RoundedCornerShape(6.dp))
             .background(Color(0xFF1E1E3A))
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            .padding(horizontal = 6.dp, vertical = 3.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
         emojis.forEach { emoji ->
             Box(
                 modifier = Modifier
-                    .padding(horizontal = 8.dp)
-                    .size(42.dp)
-                    .clip(RoundedCornerShape(10.dp))
+                    .padding(horizontal = 6.dp)
+                    .size(30.dp)
+                    .clip(RoundedCornerShape(6.dp))
                     .background(KeyboardColors.Accent.copy(alpha = 0.15f))
                     .clickable { onEmojiSelected(emoji) },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = emoji,
-                    fontSize = 24.sp
+                    fontSize = 16.sp
                 )
             }
         }
