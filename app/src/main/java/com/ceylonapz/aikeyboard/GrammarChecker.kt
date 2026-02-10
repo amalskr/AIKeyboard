@@ -1,13 +1,23 @@
 package com.ceylonapz.aikeyboard
 
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 
+private val TAG  ="AiKeyboard"
 class GrammarChecker(apiKey: String) {
 
     private val api = ClaudeApiService.create(apiKey)
     private val json = Json { ignoreUnknownKeys = true }
+
+    init {
+        Log.d(TAG, "══════════════════════════════════════")
+        Log.d(TAG, "GrammarChecker initialized")
+        Log.d(TAG, "API Key present: ${apiKey.isNotBlank()}")
+        Log.d(TAG, "API Key prefix: ${apiKey.take(10)}...")
+        Log.d(TAG, "══════════════════════════════════════")
+    }
 
     companion object {
         private const val SYSTEM_PROMPT = """
@@ -42,8 +52,8 @@ Rules:
         withContext(Dispatchers.IO) {
             try {
                 val request = ClaudeRequest(
-                    model = "claude-sonnet-4-20250514",
-                    maxTokens = 512,
+                    model = "claude-opus-4-6",
+                    maxTokens = 20000,
                     system = SYSTEM_PROMPT,
                     messages = listOf(
                         Message(

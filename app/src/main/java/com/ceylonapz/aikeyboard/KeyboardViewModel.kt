@@ -1,6 +1,7 @@
 package com.ceylonapz.aikeyboard
 
 
+import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -74,6 +75,9 @@ class KeyboardViewModel : ViewModel() {
     // ── Grammar Check via Claude API ───────────────────────
     private fun triggerGrammarCheck() {
         val text = sentenceBuffer.toString().trim()
+
+        Log.d("AIKeyboard", "Checking: '$text'")
+
         if (text.length < 4) return
 
         // Cancel previous check if still running
