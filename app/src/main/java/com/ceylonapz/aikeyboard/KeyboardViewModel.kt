@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
 
 class KeyboardViewModel : ViewModel() {
 
@@ -20,7 +21,8 @@ class KeyboardViewModel : ViewModel() {
     val isShiftOn = mutableStateOf(false)
     val isConnected = mutableStateOf(true)
 
-    private val grammarChecker = GrammarChecker(BuildConfig.GEMINI_API_KEY)
+    private val geminiClient = GeminiClient()
+    private val json = Json { ignoreUnknownKeys = true }
     private var checkJob: Job? = null
 
     // ── Key handlers ───────────────────────────────────────
@@ -74,7 +76,7 @@ class KeyboardViewModel : ViewModel() {
         statusMessage.value = ""
     }
 
-    // ── Grammar Check via Gemini API ───────────────────────
+    // ── Grammar Check via Gemini ───────────────────────────
     private fun triggerGrammarCheck() {
         val text = sentenceBuffer.toString().trim()
         Log.d(TAG, "🔵 Punctuation typed! Buffer: '$text'")
@@ -91,22 +93,36 @@ class KeyboardViewModel : ViewModel() {
 
         checkJob = viewModelScope.launch {
             try {
-                val result = grammarChecker.check(text)
-                Log.d(
-                    TAG,
-                    "🔵 Result: hasErrors=${result.hasErrors}, corrected='${result.correctedText}'"
-                )
+                // Call Gemini and get raw JSON string
+                val rawResponse = geminiClient.checkGrammar(text)
+                Log.d(TAG, "🔵 Raw response: $rawResponse")
+
+                // Clean markdown fences if Gemini adds them
+                val cleanJson = rawResponse
+                    .removePrefix("```json")
+                    .removePrefix("```")
+                    .removeSuffix("```")
+                    .trim()
+
+                Log.d(TAG, "🔵 Clean JSON: $cleanJson")
+
+                // Parse into GrammarResult
+                val result = json.decodeFromString<GrammarResult>(cleanJson)
+                Log.d(TAG, "🔵 Parsed: is_error=${result.is_error}, corrected='${result.correctedText}'")
 
                 grammarResult.value = result
                 isConnected.value = true
-                statusMessage.value = if (result.hasErrors) {
-                    "✏️ ${result.errors.size} issue(s) found"
+
+                statusMessage.value = if (result.is_error) {
+                    "✏️ Grammar issue found"
                 } else {
                     "✅ Looks good!"
                 }
+
             } catch (e: Exception) {
-                Log.e(TAG, "🔵 Check failed", e)
-                statusMessage.value = "⚠️ Offline — check skipped"
+                Log.e(TAG, "🔵 Check failed: ${e.message}", e)
+                grammarResult.value = null
+                statusMessage.value = "⚠️ Check failed"
                 isConnected.value = false
             } finally {
                 isChecking.value = false
@@ -120,7 +136,7 @@ class KeyboardViewModel : ViewModel() {
         commitText: (String) -> Unit
     ) {
         val result = grammarResult.value ?: return
-        Log.d(TAG, "🟢 Applying fix: '${result.originalText}' → '${result.correctedText}'")
+        Log.d(TAG, "🟢 Applying: '${result.originalText}' → '${result.correctedText}'")
         deleteSurrounding(result.originalText.length)
         commitText(result.correctedText)
         sentenceBuffer.clear()

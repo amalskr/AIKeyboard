@@ -1,6 +1,5 @@
 package com.ceylonapz.aikeyboard
 
-
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,7 +17,6 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -31,19 +29,16 @@ object KeyboardColors {
     val KeyPressed = Color(0xFF0F3460)
     val KeyText = Color(0xFFE0E0E0)
     val Accent = Color(0xFF7C5CFC)
-    val AccentLight = Color(0xFF9D84FF)
     val SuggestionBg = Color(0xFF1A2E1A)
-    val SuggestionBorder = Color(0xFF4CAF50)
     val CorrectGreen = Color(0xFF66BB6A)
-    val ErrorRed = Color(0xFFEF5350)
     val ErrorBg = Color(0xFF2E1A1A)
     val StatusGray = Color(0xFF888899)
     val DimText = Color(0xFF555566)
 }
 
-val ROW1 = listOf("q","w","e","r","t","y","u","i","o","p")
-val ROW2 = listOf("a","s","d","f","g","h","j","k","l")
-val ROW3 = listOf("z","x","c","v","b","n","m")
+val ROW1 = listOf("q", "w", "e", "r", "t", "y", "u", "i", "o", "p")
+val ROW2 = listOf("a", "s", "d", "f", "g", "h", "j", "k", "l")
+val ROW3 = listOf("z", "x", "c", "v", "b", "n", "m")
 
 // ── Main Compose Keyboard ──────────────────────────────────
 @Composable
@@ -67,7 +62,7 @@ fun ComposeKeyboard(
     ) {
         // ── Grammar Suggestion Bar ─────────────────────────
         AnimatedVisibility(
-            visible = result != null && result!!.hasErrors,
+            visible = result != null && result!!.is_error,
             enter = expandVertically() + fadeIn(),
             exit = shrinkVertically() + fadeOut()
         ) {
@@ -84,7 +79,7 @@ fun ComposeKeyboard(
 
         // ── Status Bar ─────────────────────────────────────
         AnimatedVisibility(
-            visible = status.isNotEmpty() && (result == null || !result!!.hasErrors)
+            visible = status.isNotEmpty() && (result == null || !result!!.is_error)
         ) {
             Row(
                 modifier = Modifier
@@ -145,7 +140,7 @@ fun ComposeKeyboard(
             ) { viewModel.onDeleteTyped(onDeleteOne) }
         }
 
-        // ── Row 4: Numbers row / punctuation ───────────────
+        // ── Row 4: Punctuation + Space + Enter ─────────────
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -181,7 +176,7 @@ fun ComposeKeyboard(
                 fontSize = 22
             ) { viewModel.onPeriodTyped(onCommitText) }
 
-            // Question mark — also triggers grammar check
+            // Question mark — triggers grammar check
             KeyButton(
                 label = "?",
                 modifier = Modifier.weight(1f),
@@ -189,7 +184,7 @@ fun ComposeKeyboard(
                 fontSize = 20
             ) { viewModel.onQuestionMarkTyped(onCommitText) }
 
-            // Exclamation — also triggers grammar check
+            // Exclamation — triggers grammar check
             KeyButton(
                 label = "!",
                 modifier = Modifier.weight(1f),
@@ -207,7 +202,7 @@ fun ComposeKeyboard(
     }
 }
 
-// ── Grammar Suggestion Bar ─────────────────────────────────
+// ── Grammar Suggestion Bar (matches new GrammarResult) ─────
 @Composable
 fun GrammarSuggestionBar(
     result: GrammarResult,
@@ -222,54 +217,26 @@ fun GrammarSuggestionBar(
             .background(KeyboardColors.ErrorBg)
             .padding(10.dp)
     ) {
-        // Error list
-        result.errors.forEach { err ->
-            Row(
-                modifier = Modifier.padding(vertical = 1.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Error type badge
-                Text(
-                    text = err.type.uppercase(),
-                    color = KeyboardColors.Accent,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(KeyboardColors.Accent.copy(alpha = 0.15f))
-                        .padding(horizontal = 6.dp, vertical = 1.dp)
-                )
-                Spacer(Modifier.width(6.dp))
+        // Original text label
+        Text(
+            text = "Original:",
+            color = KeyboardColors.StatusGray,
+            fontSize = 10.sp
+        )
+        Text(
+            text = result.originalText,
+            color = KeyboardColors.StatusGray,
+            fontSize = 13.sp
+        )
 
-                // "original" → "fixed"
-                Text(
-                    text = "${err.original}",
-                    color = KeyboardColors.ErrorRed,
-                    fontSize = 12.sp,
-                    textDecoration = TextDecoration.LineThrough
-                )
-                Text(
-                    text = " → ${err.fixed}",
-                    color = KeyboardColors.CorrectGreen,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
+        Spacer(Modifier.height(6.dp))
 
-            // Explanation
-            if (err.explanation.isNotBlank()) {
-                Text(
-                    text = err.explanation,
-                    color = KeyboardColors.StatusGray,
-                    fontSize = 10.sp,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
-                )
-            }
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        // Corrected sentence preview
+        // Corrected text preview
+        Text(
+            text = "Suggested:",
+            color = KeyboardColors.StatusGray,
+            fontSize = 10.sp
+        )
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -307,5 +274,91 @@ fun GrammarSuggestionBar(
                 Text("Apply Fix ✓", fontSize = 12.sp)
             }
         }
+    }
+}
+
+// ── Reusable Key Components ────────────────────────────────
+@Composable
+fun KeyRow(
+    keys: List<String>,
+    isShift: Boolean,
+    sidePadding: Dp = 0.dp,
+    onKey: (Char) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = sidePadding, vertical = 2.dp),
+        horizontalArrangement = Arrangement.Center
+    ) {
+        keys.forEach { key ->
+            KeyButton(
+                label = if (isShift) key.uppercase() else key,
+                modifier = Modifier.weight(1f)
+            ) { onKey(key[0]) }
+        }
+    }
+}
+
+@Composable
+fun KeyButton(
+    label: String,
+    modifier: Modifier = Modifier,
+    bgColor: Color = KeyboardColors.KeyBg,
+    fontSize: Int = 18,
+    onClick: () -> Unit
+) {
+    val haptic = LocalHapticFeedback.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    Box(
+        modifier = modifier
+            .height(48.dp)
+            .padding(2.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(if (isPressed) KeyboardColors.KeyPressed else bgColor)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            color = KeyboardColors.KeyText,
+            fontSize = fontSize.sp,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Clip
+        )
+    }
+}
+
+@Composable
+fun RowScope.SpecialKey(
+    label: String,
+    weight: Float,
+    bgColor: Color = KeyboardColors.KeyBg,
+    onClick: () -> Unit
+) {
+    val haptic = LocalHapticFeedback.current
+    Box(
+        modifier = Modifier
+            .weight(weight)
+            .height(48.dp)
+            .padding(2.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(bgColor)
+            .clickable {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(label, color = KeyboardColors.KeyText, fontSize = 16.sp)
     }
 }
