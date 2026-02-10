@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
@@ -25,6 +26,17 @@ class KeyboardViewModel : ViewModel() {
     private val emojiSuggester = EmojiSuggester()
     val emojiSuggestions = mutableStateOf<List<String>>(emptyList())
     private var checkJob: Job? = null
+    private var statusJob: Job? = null
+
+    private val checkingMessages = listOf(
+        "🔍 Analyzing text...",
+        "📝 Checking grammar...",
+        "🧠 Processing sentences...",
+        "📖 Reviewing structure...",
+        "✍️ Inspecting spelling...",
+        "🔤 Validating words...",
+        "💬 Almost done..."
+    )
 
     // ── Key handlers ───────────────────────────────────────
     fun onPeriodTyped(commitText: (String) -> Unit) {
@@ -49,6 +61,7 @@ class KeyboardViewModel : ViewModel() {
         if (isChecking.value) {
             // Stop the ongoing check and re-enable typing
             checkJob?.cancel()
+            statusJob?.cancel()
             isChecking.value = false
             statusMessage.value = ""
         } else {
@@ -105,16 +118,26 @@ class KeyboardViewModel : ViewModel() {
         }
 
         checkJob?.cancel()
+        statusJob?.cancel()
         isChecking.value = true
-        statusMessage.value = "🔍 Checking grammar..."
         Log.d(TAG, "🔵 Starting Gemini grammar check...")
+
+        // Cycle through status messages while checking
+        statusJob = viewModelScope.launch {
+            var index = 0
+            while (true) {
+                statusMessage.value = checkingMessages[index % checkingMessages.size]
+                index++
+                delay(800)
+            }
+        }
 
         checkJob = viewModelScope.launch {
             try {
-                // Call Gemini — returns GrammarResult directly
                 val result = geminiClient.checkGrammar(text)
                 Log.d(TAG, "🔵 Result: is_error=${result.is_error}, corrected='${result.correctedText}'")
 
+                statusJob?.cancel()
                 grammarResult.value = result
                 isConnected.value = true
 
@@ -126,6 +149,7 @@ class KeyboardViewModel : ViewModel() {
 
             } catch (e: Exception) {
                 Log.e(TAG, "🔵 Check failed: ${e.message}", e)
+                statusJob?.cancel()
                 grammarResult.value = null
                 statusMessage.value = "⚠️ Check failed"
                 isConnected.value = false
