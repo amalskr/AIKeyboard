@@ -36,14 +36,36 @@ android {
         )
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("keystore/ai_gammer.jks")
+            storePassword = "amal@2026"
+            keyAlias = "AiGrammarCheck"
+            keyPassword = "amal@2026"
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+    }
+
+    flavorDimensions += "environment"
+    productFlavors {
+        create("dev") {
+            dimension = "environment"
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+        }
+        create("production") {
+            dimension = "environment"
         }
     }
     compileOptions {
