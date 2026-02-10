@@ -162,17 +162,24 @@ fun ComposeKeyboard(
                 .padding(vertical = 2.dp),
             horizontalArrangement = Arrangement.Center
         ) {
+            // Grammar check button
+            SpecialKey(
+                label = "✓ AI",
+                weight = 1.3f,
+                bgColor = KeyboardColors.Accent.copy(alpha = 0.4f)
+            ) { viewModel.onGrammarCheckTapped() }
+
             // Comma
             KeyButton(
                 label = ",",
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(0.8f),
                 fontSize = 20
             ) { onCommitText(","); viewModel.sentenceBuffer.append(",") }
 
             // Space bar
             Box(
                 modifier = Modifier
-                    .weight(4.5f)
+                    .weight(3.5f)
                     .height(48.dp)
                     .padding(horizontal = 2.dp, vertical = 2.dp)
                     .clip(RoundedCornerShape(8.dp))
@@ -183,27 +190,24 @@ fun ComposeKeyboard(
                 Text("space", color = KeyboardColors.DimText, fontSize = 13.sp)
             }
 
-            // Period — triggers grammar check
+            // Period
             KeyButton(
                 label = ".",
-                modifier = Modifier.weight(1f),
-                bgColor = KeyboardColors.Accent.copy(alpha = 0.25f),
+                modifier = Modifier.weight(0.8f),
                 fontSize = 22
             ) { viewModel.onPeriodTyped(onCommitText) }
 
-            // Question mark — triggers grammar check
+            // Question mark
             KeyButton(
                 label = "?",
-                modifier = Modifier.weight(1f),
-                bgColor = KeyboardColors.Accent.copy(alpha = 0.15f),
+                modifier = Modifier.weight(0.8f),
                 fontSize = 20
             ) { viewModel.onQuestionMarkTyped(onCommitText) }
 
-            // Exclamation — triggers grammar check
+            // Exclamation
             KeyButton(
                 label = "!",
-                modifier = Modifier.weight(1f),
-                bgColor = KeyboardColors.Accent.copy(alpha = 0.15f),
+                modifier = Modifier.weight(0.8f),
                 fontSize = 20
             ) { viewModel.onExclamationTyped(onCommitText) }
 

@@ -30,18 +30,19 @@ class KeyboardViewModel : ViewModel() {
     fun onPeriodTyped(commitText: (String) -> Unit) {
         commitText(".")
         sentenceBuffer.append(".")
-        triggerGrammarCheck()
     }
 
     fun onQuestionMarkTyped(commitText: (String) -> Unit) {
         commitText("?")
         sentenceBuffer.append("?")
-        triggerGrammarCheck()
     }
 
     fun onExclamationTyped(commitText: (String) -> Unit) {
         commitText("!")
         sentenceBuffer.append("!")
+    }
+
+    fun onGrammarCheckTapped() {
         triggerGrammarCheck()
     }
 
