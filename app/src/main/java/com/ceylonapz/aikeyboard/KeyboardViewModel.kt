@@ -19,13 +19,24 @@ class KeyboardViewModel : ViewModel() {
 
     var vibrator: Vibrator? = null
 
+    private fun vibrateKey() {
+        vibrator?.let {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                it.vibrate(VibrationEffect.createOneShot(30, 80))
+            } else {
+                @Suppress("DEPRECATION")
+                it.vibrate(30)
+            }
+        }
+    }
+
     private fun vibrateLong() {
         vibrator?.let {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                it.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
+                it.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
             } else {
                 @Suppress("DEPRECATION")
-                it.vibrate(200)
+                it.vibrate(100)
             }
         }
     }
@@ -79,6 +90,7 @@ class KeyboardViewModel : ViewModel() {
 
     fun onSymbolTyped(symbol: String, commitText: (String) -> Unit) {
         if (isChecking.value) return
+        vibrateKey()
         commitText(symbol)
         sentenceBuffer.append(symbol)
     }
@@ -86,23 +98,27 @@ class KeyboardViewModel : ViewModel() {
     // ── Key handlers ───────────────────────────────────────
     fun onPeriodTyped(commitText: (String) -> Unit) {
         if (isChecking.value) return
+        vibrateKey()
         commitText(".")
         sentenceBuffer.append(".")
     }
 
     fun onQuestionMarkTyped(commitText: (String) -> Unit) {
         if (isChecking.value) return
+        vibrateKey()
         commitText("?")
         sentenceBuffer.append("?")
     }
 
     fun onExclamationTyped(commitText: (String) -> Unit) {
         if (isChecking.value) return
+        vibrateKey()
         commitText("!")
         sentenceBuffer.append("!")
     }
 
     fun onGrammarCheckTapped() {
+        vibrateLong()
         if (isChecking.value) {
             // Stop the ongoing check and re-enable typing
             checkJob?.cancel()
@@ -116,6 +132,7 @@ class KeyboardViewModel : ViewModel() {
 
     fun onCharTyped(char: Char, commitText: (String) -> Unit) {
         if (isChecking.value) return
+        vibrateKey()
         val c = if (isShiftOn.value) char.uppercaseChar() else char.lowercaseChar()
         commitText(c.toString())
         sentenceBuffer.append(c)
@@ -124,6 +141,7 @@ class KeyboardViewModel : ViewModel() {
 
     fun onSpaceTyped(commitText: (String) -> Unit) {
         if (isChecking.value) return
+        vibrateKey()
         commitText(" ")
         sentenceBuffer.append(" ")
         updateEmojiSuggestions()
@@ -131,6 +149,7 @@ class KeyboardViewModel : ViewModel() {
 
     fun onDeleteTyped(deleteOne: () -> Unit) {
         if (isChecking.value) return
+        vibrateKey()
         deleteOne()
         if (sentenceBuffer.isNotEmpty()) {
             sentenceBuffer.deleteCharAt(sentenceBuffer.length - 1)
@@ -141,11 +160,13 @@ class KeyboardViewModel : ViewModel() {
     }
 
     fun onShiftToggle() {
+        vibrateKey()
         isShiftOn.value = !isShiftOn.value
     }
 
     fun onEnter(sendEnter: () -> Unit) {
         if (isChecking.value) return
+        vibrateKey()
         sendEnter()
         sentenceBuffer.clear()
         lastCheckedText = ""
