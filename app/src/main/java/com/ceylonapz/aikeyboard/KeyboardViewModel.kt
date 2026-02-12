@@ -36,6 +36,7 @@ class KeyboardViewModel : ViewModel() {
     val statusMessage = mutableStateOf("")
     val isShiftOn = mutableStateOf(false)
     val isConnected = mutableStateOf(true)
+    val keyboardMode = mutableStateOf(KeyboardMode.QWERTY)
 
     private val geminiClient = GeminiClient()
     private val emojiSuggester = EmojiSuggester()
@@ -53,6 +54,33 @@ class KeyboardViewModel : ViewModel() {
         "🔤 Validating words...",
         "💬 Almost done..."
     )
+
+    // ── Mode switching ────────────────────────────────────
+    fun switchToQwerty() {
+        keyboardMode.value = KeyboardMode.QWERTY
+    }
+
+    fun switchToSymbols() {
+        keyboardMode.value = KeyboardMode.SYMBOLS_1
+    }
+
+    fun toggleSymbolPage() {
+        keyboardMode.value = when (keyboardMode.value) {
+            KeyboardMode.SYMBOLS_1 -> KeyboardMode.SYMBOLS_2
+            KeyboardMode.SYMBOLS_2 -> KeyboardMode.SYMBOLS_1
+            else -> KeyboardMode.SYMBOLS_1
+        }
+    }
+
+    fun switchToEmoji() {
+        keyboardMode.value = KeyboardMode.EMOJI
+    }
+
+    fun onSymbolTyped(symbol: String, commitText: (String) -> Unit) {
+        if (isChecking.value) return
+        commitText(symbol)
+        sentenceBuffer.append(symbol)
+    }
 
     // ── Key handlers ───────────────────────────────────────
     fun onPeriodTyped(commitText: (String) -> Unit) {
