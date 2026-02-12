@@ -51,7 +51,9 @@ class KeyboardViewModel : ViewModel() {
 
     private val geminiClient = GeminiClient()
     private val emojiSuggester = EmojiSuggester()
+    private val wordSuggester = WordSuggester()
     val emojiSuggestions = mutableStateOf<List<String>>(emptyList())
+    val wordSuggestions = mutableStateOf<List<String>>(emptyList())
     private var checkJob: Job? = null
     private var statusJob: Job? = null
     private var autoDismissJob: Job? = null
@@ -137,6 +139,7 @@ class KeyboardViewModel : ViewModel() {
         commitText(c.toString())
         sentenceBuffer.append(c)
         isShiftOn.value = false
+        updateWordSuggestions()
     }
 
     fun onSpaceTyped(commitText: (String) -> Unit) {
@@ -144,6 +147,7 @@ class KeyboardViewModel : ViewModel() {
         vibrateKey()
         commitText(" ")
         sentenceBuffer.append(" ")
+        wordSuggestions.value = emptyList()
         updateEmojiSuggestions()
     }
 
@@ -157,6 +161,7 @@ class KeyboardViewModel : ViewModel() {
         grammarResult.value = null
         statusMessage.value = ""
         emojiSuggestions.value = emptyList()
+        updateWordSuggestions()
     }
 
     fun onShiftToggle() {
@@ -291,6 +296,30 @@ class KeyboardViewModel : ViewModel() {
         lastCheckedText = sentenceBuffer.toString().trim()
         grammarResult.value = null
         statusMessage.value = ""
+    }
+
+    // ── Word suggestions ──────────────────────────────────
+    private fun updateWordSuggestions() {
+        val text = sentenceBuffer.toString()
+        val lastWord = text.split(" ").lastOrNull() ?: ""
+        wordSuggestions.value = if (lastWord.length >= 2) {
+            wordSuggester.suggest(lastWord)
+        } else {
+            emptyList()
+        }
+    }
+
+    fun onWordSelected(word: String, commitText: (String) -> Unit) {
+        vibrateKey()
+        val text = sentenceBuffer.toString()
+        val lastWord = text.split(" ").lastOrNull() ?: ""
+        if (lastWord.isNotEmpty()) {
+            // Complete the remaining part of the word + add space
+            val remaining = word.substring(lastWord.length)
+            commitText("$remaining ")
+            sentenceBuffer.append("$remaining ")
+        }
+        wordSuggestions.value = emptyList()
     }
 
     // ── Emoji suggestion for last word ─────────────────────

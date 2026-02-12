@@ -206,6 +206,7 @@ private fun ComposeKeyboardContent(
     val isChecking by viewModel.isChecking
     val keyboardMode by viewModel.keyboardMode
     val emojis by viewModel.emojiSuggestions
+    val words by viewModel.wordSuggestions
 
     Column(
         modifier = Modifier
@@ -276,6 +277,22 @@ private fun ComposeKeyboardContent(
         }
 
         Spacer(Modifier.height(2.dp))
+
+        // ── Word Suggestion Bar ─────────────────────────────
+        if (keyboardMode == KeyboardMode.QWERTY) {
+            AnimatedVisibility(
+                visible = words.isNotEmpty(),
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                WordSuggestionBar(
+                    words = words,
+                    onWordSelected = { word ->
+                        viewModel.onWordSelected(word, onCommitText)
+                    }
+                )
+            }
+        }
 
         // ── Mode-specific layouts ───────────────────────────
         when (keyboardMode) {
@@ -652,6 +669,49 @@ fun EmojiSuggestionRow(
                 contentAlignment = Alignment.Center
             ) {
                 Text(text = emoji, fontSize = 16.sp)
+            }
+        }
+    }
+}
+
+// ── Word Suggestion Bar ──────────────────────────────────
+@Composable
+fun WordSuggestionBar(
+    words: List<String>,
+    onWordSelected: (String) -> Unit
+) {
+    val colors = KeyboardColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 3.dp, vertical = 2.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        words.forEachIndexed { index, word ->
+            if (index > 0) {
+                Box(
+                    Modifier
+                        .width(1.dp)
+                        .height(28.dp)
+                        .background(colors.DimText.copy(alpha = 0.3f))
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(6.dp))
+                    .clickable { onWordSelected(word) }
+                    .padding(vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = word,
+                    color = colors.KeyText,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }
