@@ -44,6 +44,7 @@ class KeyboardViewModel : ViewModel() {
     private var checkJob: Job? = null
     private var statusJob: Job? = null
     private var autoDismissJob: Job? = null
+    private var lastCheckedText = ""
 
     private val checkingMessages = listOf(
         "🔍 Analyzing text...",
@@ -147,24 +148,46 @@ class KeyboardViewModel : ViewModel() {
         if (isChecking.value) return
         sendEnter()
         sentenceBuffer.clear()
+        lastCheckedText = ""
         grammarResult.value = null
         statusMessage.value = ""
     }
 
     // ── Grammar Check via Gemini ───────────────────────────
     private fun triggerGrammarCheck() {
-        val text = sentenceBuffer.toString().trim()
-        Log.d(TAG, "🔵 Punctuation typed! Buffer: '$text'")
+        val fullText = sentenceBuffer.toString().trim()
+        Log.d(TAG, "🔵 Grammar check requested. Buffer: '$fullText'")
 
-        if (text.length < 4) {
-            Log.d(TAG, "🔵 Too short (${text.length} chars), skipping")
+        if (fullText.length < 4) {
+            Log.d(TAG, "🔵 Too short (${fullText.length} chars), skipping")
             return
+        }
+
+        // Skip if text hasn't changed since last check
+        if (fullText == lastCheckedText) {
+            Log.d(TAG, "🔵 Text unchanged, skipping re-check")
+            statusMessage.value = "\u2705 Already checked!"
+            autoDismissStatus()
+            return
+        }
+
+        // Only send new text if buffer starts with already-checked prefix
+        val textToCheck = if (lastCheckedText.isNotEmpty() && fullText.startsWith(lastCheckedText)) {
+            val newPart = fullText.substring(lastCheckedText.length).trim()
+            Log.d(TAG, "🔵 Incremental check, new part: '$newPart'")
+            if (newPart.length < 4) {
+                Log.d(TAG, "🔵 New part too short (${newPart.length} chars), skipping")
+                return
+            }
+            newPart
+        } else {
+            fullText
         }
 
         checkJob?.cancel()
         statusJob?.cancel()
         isChecking.value = true
-        Log.d(TAG, "🔵 Starting Gemini grammar check...")
+        Log.d(TAG, "🔵 Sending to Gemini: '$textToCheck'")
 
         // Cycle through status messages while checking
         statusJob = viewModelScope.launch {
@@ -178,26 +201,28 @@ class KeyboardViewModel : ViewModel() {
 
         checkJob = viewModelScope.launch {
             try {
-                val result = geminiClient.checkGrammar(text)
+                val result = geminiClient.checkGrammar(textToCheck)
                 Log.d(TAG, "🔵 Result: is_error=${result.is_error}, corrected='${result.correctedText}'")
 
                 statusJob?.cancel()
                 grammarResult.value = result
                 isConnected.value = true
 
-                statusMessage.value = if (result.is_error) {
-                    "✏️ Grammar issue found"
+                if (result.is_error) {
+                    statusMessage.value = "\u270F\uFE0F Grammar issue found"
                 } else {
-                    "✅ Looks good!"
+                    // No errors — mark the full buffer as checked
+                    lastCheckedText = fullText
+                    statusMessage.value = "\u2705 Looks good!"
+                    autoDismissStatus()
                 }
-                if (!result.is_error) autoDismissStatus()
                 vibrateLong()
 
             } catch (e: Exception) {
                 Log.e(TAG, "🔵 Check failed: ${e.message}", e)
                 statusJob?.cancel()
                 grammarResult.value = null
-                statusMessage.value = "⚠️ Check failed"
+                statusMessage.value = "\u26A0\uFE0F Check failed"
                 isConnected.value = false
                 vibrateLong()
             } finally {
@@ -212,13 +237,23 @@ class KeyboardViewModel : ViewModel() {
         commitText: (String) -> Unit
     ) {
         val result = grammarResult.value ?: return
-        Log.d(TAG, "🟢 Applying: '${result.originalText}' → '${result.correctedText}'")
-        deleteSurrounding(result.originalText.length)
-        commitText(result.correctedText)
+        Log.d(TAG, "\uD83D\uDFE2 Applying: '${result.originalText}' \u2192 '${result.correctedText}'")
+
+        // Build the new full text: checked prefix + corrected new part
+        val fullText = sentenceBuffer.toString().trim()
+        val newFullText = if (lastCheckedText.isNotEmpty() && fullText.startsWith(lastCheckedText)) {
+            lastCheckedText + result.correctedText
+        } else {
+            result.correctedText
+        }
+
+        deleteSurrounding(fullText.length)
+        commitText(newFullText)
         sentenceBuffer.clear()
-        sentenceBuffer.append(result.correctedText)
+        sentenceBuffer.append(newFullText)
+        lastCheckedText = newFullText
         grammarResult.value = null
-        statusMessage.value = "✅ Corrected!"
+        statusMessage.value = "\u2705 Corrected!"
         autoDismissStatus()
     }
 
@@ -231,6 +266,8 @@ class KeyboardViewModel : ViewModel() {
     }
 
     fun dismissSuggestion() {
+        // Mark current buffer as checked so it won't re-check on dismiss
+        lastCheckedText = sentenceBuffer.toString().trim()
         grammarResult.value = null
         statusMessage.value = ""
     }
