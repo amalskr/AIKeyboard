@@ -28,8 +28,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -334,7 +336,8 @@ private fun QwertyLayout(
         horizontalArrangement = Arrangement.Center
     ) {
         SpecialKey(
-            label = if (isShift) "⇧" else "⇪",
+            label = "Shift",
+            painter = painterResource(R.drawable.ic_shift),
             weight = 1.4f,
             bgColor = if (isShift) colors.Accent else colors.SpecialKeyBg
         ) { viewModel.onShiftToggle() }
@@ -347,7 +350,8 @@ private fun QwertyLayout(
         }
 
         RepeatableSpecialKey(
-            label = "⌫",
+            label = "Backspace",
+            painter = painterResource(R.drawable.ic_backspace),
             weight = 1.4f,
             bgColor = colors.SpecialKeyBg
         ) { viewModel.onDeleteTyped(onDeleteOne) }
@@ -407,7 +411,8 @@ private fun SymbolLayout(
         }
 
         RepeatableSpecialKey(
-            label = "⌫",
+            label = "Backspace",
+            painter = painterResource(R.drawable.ic_backspace),
             weight = 1.4f,
             bgColor = colors.SpecialKeyBg
         ) { viewModel.onDeleteTyped(onDeleteOne) }
@@ -488,7 +493,8 @@ private fun BottomRow(
 
         // Enter
         SpecialKey(
-            label = "↵",
+            label = "Enter",
+            painter = painterResource(R.drawable.ic_keyboard_return),
             weight = 1.4f,
             bgColor = colors.SpecialKeyBg,
             fontSize = 20
@@ -594,7 +600,8 @@ private fun EmojiPickerLayout(
             Spacer(Modifier.weight(1f))
 
             RepeatableBoxKey(
-                label = "⌫",
+                label = "Backspace",
+                painter = painterResource(R.drawable.ic_backspace),
                 bgColor = colors.SpecialKeyBg
             ) { viewModel.onDeleteTyped(onDeleteOne) }
         }
@@ -1024,7 +1031,9 @@ fun KeyButton(
 
 @Composable
 fun RowScope.SpecialKey(
-    label: String,
+    label: String = "",
+    painter: Painter? = null,
+    iconSize: Dp = 22.dp,
     weight: Float,
     bgColor: Color = KeyboardColors.current.SpecialKeyBg,
     fontSize: Int = 16,
@@ -1051,13 +1060,24 @@ fun RowScope.SpecialKey(
             },
         contentAlignment = Alignment.Center
     ) {
-        Text(label, color = colors.KeyText, fontSize = fontSize.sp)
+        if (painter != null) {
+            Icon(
+                painter = painter,
+                contentDescription = label.ifEmpty { null },
+                tint = colors.KeyText,
+                modifier = Modifier.size(iconSize)
+            )
+        } else {
+            Text(label, color = colors.KeyText, fontSize = fontSize.sp)
+        }
     }
 }
 
 @Composable
 fun RowScope.RepeatableSpecialKey(
-    label: String,
+    label: String = "",
+    painter: Painter? = null,
+    iconSize: Dp = 22.dp,
     weight: Float,
     bgColor: Color = KeyboardColors.current.SpecialKeyBg,
     initialDelay: Long = 400L,
@@ -1095,13 +1115,24 @@ fun RowScope.RepeatableSpecialKey(
             },
         contentAlignment = Alignment.Center
     ) {
-        Text(label, color = colors.KeyText, fontSize = 16.sp)
+        if (painter != null) {
+            Icon(
+                painter = painter,
+                contentDescription = label.ifEmpty { null },
+                tint = colors.KeyText,
+                modifier = Modifier.size(iconSize)
+            )
+        } else {
+            Text(label, color = colors.KeyText, fontSize = 16.sp)
+        }
     }
 }
 
 @Composable
 fun RepeatableBoxKey(
-    label: String,
+    label: String = "",
+    painter: Painter? = null,
+    iconSize: Dp = 22.dp,
     bgColor: Color = KeyboardColors.current.SpecialKeyBg,
     initialDelay: Long = 400L,
     repeatInterval: Long = 50L,
@@ -1136,6 +1167,15 @@ fun RepeatableBoxKey(
             .padding(horizontal = 16.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(label, color = colors.KeyText, fontSize = 18.sp)
+        if (painter != null) {
+            Icon(
+                painter = painter,
+                contentDescription = label.ifEmpty { null },
+                tint = colors.KeyText,
+                modifier = Modifier.size(iconSize)
+            )
+        } else {
+            Text(label, color = colors.KeyText, fontSize = 18.sp)
+        }
     }
 }
