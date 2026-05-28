@@ -1,6 +1,12 @@
 package com.ceylonapz.aikeyboard
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -17,6 +23,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -208,7 +216,6 @@ private fun ComposeKeyboardContent(
 ) {
     val colors = KeyboardColors.current
     val result by viewModel.grammarResult
-    val status by viewModel.statusMessage
     val isChecking by viewModel.isChecking
     val keyboardMode by viewModel.keyboardMode
     val emojis by viewModel.emojiSuggestions
@@ -251,35 +258,6 @@ private fun ComposeKeyboardContent(
                     },
                     onDismiss = { viewModel.dismissSuggestion() }
                 )
-            }
-        }
-
-        // ── Status Bar ─────────────────────────────────────
-        if (keyboardMode != KeyboardMode.EMOJI) {
-            AnimatedVisibility(
-                visible = status.isNotEmpty() && (result == null || !result!!.is_error)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (isChecking) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(12.dp),
-                            strokeWidth = 2.dp,
-                            color = colors.Accent
-                        )
-                        Spacer(Modifier.width(8.dp))
-                    }
-                    Text(
-                        text = status,
-                        color = if (status.contains("✅")) colors.CorrectGreen
-                        else colors.StatusGray,
-                        fontSize = 12.sp
-                    )
-                }
             }
         }
 
@@ -713,28 +691,73 @@ fun GboardTopBar(
 
         VerticalDivider(colors.DimText)
 
-        // Right: AI Grammar Check button — rectangular white pill
-        Box(
-            modifier = Modifier
-                .padding(start = 4.dp)
-                .height(36.dp)
-                .widthIn(min = 52.dp)
-                .clip(RoundedCornerShape(18.dp))
-                .background(if (isChecking) Color(0xFFCC4444) else colors.KeyBg)
-                .clickable {
-                    onTap()
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    onAiTapped()
-                }
-                .padding(horizontal = 14.dp),
-            contentAlignment = Alignment.Center
+        // Right: AI Grammar Check button — animated gradient while checking
+        AiGradientPill(
+            isChecking = isChecking,
+            idleColor = colors.KeyBg,
+            iconColor = colors.KeyText
         ) {
-            Text(
-                text = if (isChecking) "■" else "✨",
-                fontSize = 18.sp,
-                color = if (isChecking) Color.White else colors.KeyText
-            )
+            onTap()
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            onAiTapped()
         }
+    }
+}
+
+@Composable
+private fun AiGradientPill(
+    isChecking: Boolean,
+    idleColor: Color,
+    iconColor: Color,
+    onClick: () -> Unit
+) {
+    val transition = rememberInfiniteTransition(label = "ai-gradient")
+    val shift by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1400, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "ai-shift"
+    )
+
+    val gradientColors = listOf(
+        Color(0xFF6F8B5C), // sage
+        Color(0xFF5CB4E6), // cyan
+        Color(0xFF8B5CE6), // purple
+        Color(0xFFE65C9F), // pink
+        Color(0xFFE6B85C), // amber
+        Color(0xFF6F8B5C)  // sage (loop)
+    )
+
+    val brush = if (isChecking) {
+        val phase = shift * 600f
+        Brush.linearGradient(
+            colors = gradientColors,
+            start = Offset(phase, 0f),
+            end = Offset(phase + 300f, 120f)
+        )
+    } else {
+        Brush.linearGradient(listOf(idleColor, idleColor))
+    }
+
+    Box(
+        modifier = Modifier
+            .padding(start = 4.dp)
+            .height(36.dp)
+            .widthIn(min = 52.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(brush)
+            .clickable { onClick() }
+            .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "✨",
+            fontSize = 18.sp,
+            color = if (isChecking) Color.White else iconColor
+        )
     }
 }
 
