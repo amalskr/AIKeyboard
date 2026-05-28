@@ -9,6 +9,7 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -45,7 +46,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -97,19 +100,20 @@ fun SetupScreen() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Logo / Icon
+            // Logo / Icon — adaptive launcher (background + oversized foreground, clipped to circle)
             Box(
                 modifier = Modifier
                     .size(80.dp)
                     .clip(CircleShape)
-                    .background(
-                        Brush.linearGradient(
-                            listOf(accent, Color(0xFF9D84FF))
-                        )
-                    ),
+                    .background(Color(0xFF2E6DFC)),
                 contentAlignment = Alignment.Center
             ) {
-                Text("AI", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Image(
+                    painter = painterResource(R.mipmap.ic_launcher_foreground),
+                    contentDescription = "AI Grammar Keyboard icon",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.size(125.dp)
+                )
             }
 
             Spacer(Modifier.height(24.dp))
@@ -121,7 +125,7 @@ fun SetupScreen() {
                 color = titleColor
             )
             Text(
-                "Powered by AI",
+                "By Gemini",
                 fontSize = 14.sp,
                 color = subtitleColor
             )
