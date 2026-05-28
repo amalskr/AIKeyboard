@@ -67,6 +67,11 @@ class KeyboardViewModel : ViewModel() {
     private var replyJob: Job? = null
     private var lastCheckedText = ""
 
+    init {
+        // Seed the suggestion bar with common starters when the keyboard first opens.
+        wordSuggestions.value = wordSuggester.suggestNext("")
+    }
+
     // ── Mode switching ────────────────────────────────────
     fun switchToQwerty() {
         vibrateKey()
@@ -241,7 +246,7 @@ class KeyboardViewModel : ViewModel() {
         vibrateKey()
         commitText(" ")
         sentenceBuffer.append(" ")
-        wordSuggestions.value = emptyList()
+        updateWordSuggestions()
         updateEmojiSuggestions()
     }
 
@@ -371,11 +376,14 @@ class KeyboardViewModel : ViewModel() {
     // ── Word suggestions ──────────────────────────────────
     private fun updateWordSuggestions() {
         val text = sentenceBuffer.toString()
-        val lastWord = text.split(" ").lastOrNull() ?: ""
-        wordSuggestions.value = if (lastWord.length >= 2) {
-            wordSuggester.suggest(lastWord)
+        val tokens = text.split(" ")
+        val current = tokens.lastOrNull().orEmpty()
+        wordSuggestions.value = if (current.isNotEmpty()) {
+            wordSuggester.suggest(current)
         } else {
-            emptyList()
+            val previous = tokens.dropLast(1).lastOrNull { it.isNotEmpty() }
+                ?.trimEnd('.', ',', '!', '?', ';', ':') ?: ""
+            wordSuggester.suggestNext(previous)
         }
     }
 

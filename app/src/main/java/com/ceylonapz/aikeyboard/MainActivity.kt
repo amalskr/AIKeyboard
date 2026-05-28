@@ -99,7 +99,7 @@ fun SetupScreen() {
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(32.dp),
+                .padding(horizontal = 32.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -130,6 +130,11 @@ fun SetupScreen() {
             Text(
                 "By Gemini",
                 fontSize = 14.sp,
+                color = subtitleColor
+            )
+            Text(
+                "v${BuildConfig.VERSION_NAME}",
+                fontSize = 12.sp,
                 color = subtitleColor
             )
 
@@ -215,6 +220,14 @@ fun SetupScreen() {
             ) {
                 Text("↻ Refresh Status")
             }
+
+            Spacer(Modifier.height(24.dp))
+
+            Text(
+                "© CeylonApz 2026",
+                fontSize = 11.sp,
+                color = subtitleColor
+            )
         }
     }
 }

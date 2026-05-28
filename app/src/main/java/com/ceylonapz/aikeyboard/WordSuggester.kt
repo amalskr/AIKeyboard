@@ -14,20 +14,91 @@ class WordSuggester {
     }
 
     /**
-     * Returns up to [limit] word suggestions for the given [prefix].
-     * Words are returned in frequency order (most common first).
+     * Prefix completions for the word currently being typed.
+     * "p" -> ["people", "put", "people"], "prep" -> ["prepare", "prepared"], etc.
      */
     fun suggest(prefix: String, limit: Int = 3): List<String> {
-        if (prefix.length < 2) return emptyList()
-        val key = prefix.take(2).lowercase()
+        if (prefix.isEmpty()) return emptyList()
         val p = prefix.lowercase()
-        return index[key]
-            ?.filter { it.startsWith(p) && it != p }
-            ?.take(limit)
-            ?: emptyList()
+        return if (prefix.length == 1) {
+            // Single-letter prefix: scan everything starting with that letter
+            WORDS.asSequence()
+                .filter { it.startsWith(p) && it != p }
+                .take(limit)
+                .toList()
+        } else {
+            val key = p.take(2)
+            index[key]
+                ?.filter { it.startsWith(p) && it != p }
+                ?.take(limit)
+                ?: emptyList()
+        }
+    }
+
+    /**
+     * Next-word suggestions to show when the user has just typed a space.
+     * Looks up the previous word in a small bigram map; falls back to the most
+     * common starter words if the previous word is unknown or empty.
+     */
+    fun suggestNext(previousWord: String, limit: Int = 3): List<String> {
+        val p = previousWord.lowercase().trim()
+        val bigrams = if (p.isNotEmpty()) NEXT_WORD[p] else null
+        return (bigrams ?: COMMON_STARTERS).take(limit)
     }
 
     companion object {
+        private val COMMON_STARTERS = listOf(
+            "I", "the", "you", "do", "to", "a", "and", "is", "it", "that"
+        )
+
+        // Hand-picked bigram completions for high-frequency previous words.
+        // Casing here is what gets inserted into the buffer when the chip is tapped.
+        private val NEXT_WORD = mapOf(
+            "i" to listOf("am", "have", "will", "do", "think", "want", "need"),
+            "you" to listOf("are", "can", "will", "have", "should", "know"),
+            "we" to listOf("are", "can", "will", "have", "should", "need"),
+            "they" to listOf("are", "have", "will", "can", "were"),
+            "he" to listOf("is", "was", "has", "will", "said"),
+            "she" to listOf("is", "was", "has", "will", "said"),
+            "it" to listOf("is", "was", "will", "would", "could"),
+            "the" to listOf("best", "first", "next", "same", "new", "other"),
+            "a" to listOf("lot", "little", "few", "new", "good"),
+            "an" to listOf("hour", "idea", "issue", "answer", "email"),
+            "to" to listOf("be", "do", "go", "see", "get", "make"),
+            "for" to listOf("the", "you", "me", "us", "a", "now"),
+            "of" to listOf("the", "course", "us", "them"),
+            "and" to listOf("then", "I", "the", "we", "you"),
+            "is" to listOf("a", "the", "not", "there", "it"),
+            "was" to listOf("a", "the", "not", "going", "just"),
+            "are" to listOf("you", "we", "they", "going", "not"),
+            "do" to listOf("you", "not", "it", "this", "that"),
+            "does" to listOf("it", "not", "that", "this"),
+            "have" to listOf("a", "to", "you", "been", "the"),
+            "has" to listOf("been", "a", "the", "to"),
+            "will" to listOf("be", "do", "you", "have", "see"),
+            "can" to listOf("you", "I", "we", "do", "be", "see"),
+            "could" to listOf("you", "be", "have", "not"),
+            "should" to listOf("be", "I", "you", "have", "not"),
+            "would" to listOf("be", "you", "like", "have"),
+            "let" to listOf("me", "us", "you", "it"),
+            "going" to listOf("to", "on", "out", "home"),
+            "want" to listOf("to", "you", "it", "a"),
+            "need" to listOf("to", "you", "a", "more", "some"),
+            "thank" to listOf("you", "you!", "you so"),
+            "thanks" to listOf("for", "a lot", "again"),
+            "see" to listOf("you", "the", "it", "what"),
+            "what" to listOf("is", "are", "do", "you", "the"),
+            "where" to listOf("are", "is", "did", "you"),
+            "when" to listOf("you", "are", "is", "did", "the"),
+            "how" to listOf("are", "is", "do", "you", "much"),
+            "why" to listOf("is", "are", "did", "you", "do"),
+            "good" to listOf("morning", "luck", "to", "for"),
+            "happy" to listOf("birthday", "to", "with", "for"),
+            "hi" to listOf("there", "everyone", "all"),
+            "hey" to listOf("there", "you", "buddy", "everyone"),
+            "hello" to listOf("there", "everyone", "all"),
+        )
+
         // ~1000 common English words ordered by frequency within each prefix group
         private val WORDS = listOf(
             // a
