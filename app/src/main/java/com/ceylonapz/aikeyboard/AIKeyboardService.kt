@@ -5,6 +5,7 @@ import android.inputmethodservice.InputMethodService
 import android.os.Vibrator
 import android.view.KeyEvent
 import android.view.View
+import android.view.inputmethod.InputMethodManager
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -76,15 +77,20 @@ class AIKeyboardService : InputMethodService(),
                         },
                         onSendEnter = {
                             currentInputConnection?.sendKeyEvent(
-                                KeyEvent(
-                                    KeyEvent.ACTION_DOWN,
-                                    KeyEvent.KEYCODE_ENTER
-                                )
+                                KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER)
+                            )
+                            currentInputConnection?.sendKeyEvent(
+                                KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER)
                             )
                         },
                         onDeleteSurrounding = { len ->
                             currentInputConnection
                                 ?.deleteSurroundingText(len, 0)
+                        },
+                        onLanguageSwitch = {
+                            val imm = getSystemService(Context.INPUT_METHOD_SERVICE)
+                                    as InputMethodManager
+                            imm.showInputMethodPicker()
                         }
                     )
                 }

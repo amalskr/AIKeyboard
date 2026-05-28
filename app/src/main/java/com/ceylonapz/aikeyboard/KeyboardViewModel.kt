@@ -71,14 +71,17 @@ class KeyboardViewModel : ViewModel() {
 
     // ── Mode switching ────────────────────────────────────
     fun switchToQwerty() {
+        vibrateKey()
         keyboardMode.value = KeyboardMode.QWERTY
     }
 
     fun switchToSymbols() {
+        vibrateKey()
         keyboardMode.value = KeyboardMode.SYMBOLS_1
     }
 
     fun toggleSymbolPage() {
+        vibrateKey()
         keyboardMode.value = when (keyboardMode.value) {
             KeyboardMode.SYMBOLS_1 -> KeyboardMode.SYMBOLS_2
             KeyboardMode.SYMBOLS_2 -> KeyboardMode.SYMBOLS_1
@@ -87,7 +90,13 @@ class KeyboardViewModel : ViewModel() {
     }
 
     fun switchToEmoji() {
+        vibrateKey()
         keyboardMode.value = KeyboardMode.EMOJI
+    }
+
+    fun onLanguageSwitchTapped(showPicker: () -> Unit) {
+        vibrateKey()
+        showPicker()
     }
 
     fun onSymbolTyped(symbol: String, commitText: (String) -> Unit) {
@@ -332,6 +341,7 @@ class KeyboardViewModel : ViewModel() {
     }
 
     fun onEmojiSelected(emoji: String, commitText: (String) -> Unit) {
+        vibrateKey()
         commitText("$emoji ")
         sentenceBuffer.append("$emoji ")
         emojiSuggestions.value = emptyList()
