@@ -53,12 +53,17 @@ class KeyboardViewModel : ViewModel() {
     val isConnected = mutableStateOf(true)
     val keyboardMode = mutableStateOf(KeyboardMode.QWERTY)
 
+    val replySuggestions = mutableStateOf<List<String>>(emptyList())
+    val isGeneratingReplies = mutableStateOf(false)
+    val replyFailed = mutableStateOf<String?>(null)
+
     private val geminiClient = GeminiClient()
     private val emojiSuggester = EmojiSuggester()
     private val wordSuggester = WordSuggester()
     val emojiSuggestions = mutableStateOf<List<String>>(emptyList())
     val wordSuggestions = mutableStateOf<List<String>>(emptyList())
     private var checkJob: Job? = null
+    private var replyJob: Job? = null
     private var lastCheckedText = ""
 
     // ── Mode switching ────────────────────────────────────
@@ -129,6 +134,76 @@ class KeyboardViewModel : ViewModel() {
         } else {
             triggerGrammarCheck()
         }
+    }
+
+    // ── Smart Reply ────────────────────────────────────────
+    fun onSmartReplyTapped(readClipboard: () -> String?) {
+        vibrateLong()
+
+        if (isGeneratingReplies.value) {
+            replyJob?.cancel()
+            isGeneratingReplies.value = false
+            return
+        }
+
+        val incoming = readClipboard()?.trim().orEmpty()
+        if (incoming.isEmpty()) {
+            replyFailed.value = "Copy a message first, then tap 💬"
+            replySuggestions.value = emptyList()
+            viewModelScope.launch {
+                delay(2500)
+                replyFailed.value = null
+            }
+            return
+        }
+
+        // A tap with replies already showing dismisses them
+        if (replySuggestions.value.isNotEmpty()) {
+            replySuggestions.value = emptyList()
+            return
+        }
+
+        replyJob?.cancel()
+        replyFailed.value = null
+        isGeneratingReplies.value = true
+        Log.d(TAG, "Smart reply for: '$incoming'")
+
+        replyJob = viewModelScope.launch {
+            try {
+                val replies = geminiClient.suggestReplies(incoming)
+                replySuggestions.value = replies
+                if (replies.isEmpty()) {
+                    replyFailed.value = "No suggestions returned"
+                    viewModelScope.launch {
+                        delay(2500)
+                        replyFailed.value = null
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Smart reply failed: ${e.message}", e)
+                replySuggestions.value = emptyList()
+                replyFailed.value = e.message ?: "Reply failed"
+                viewModelScope.launch {
+                    delay(2500)
+                    replyFailed.value = null
+                }
+            } finally {
+                isGeneratingReplies.value = false
+                vibrateLong()
+            }
+        }
+    }
+
+    fun onReplySelected(reply: String, commitText: (String) -> Unit) {
+        vibrateKey()
+        commitText(reply)
+        sentenceBuffer.append(reply)
+        replySuggestions.value = emptyList()
+        lastCheckedText = sentenceBuffer.toString().trim()
+    }
+
+    fun dismissReplies() {
+        replySuggestions.value = emptyList()
     }
 
     fun onCharTyped(char: Char, commitText: (String) -> Unit) {

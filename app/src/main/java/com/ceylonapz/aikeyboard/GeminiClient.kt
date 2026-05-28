@@ -112,6 +112,53 @@ Output: {"originalText":"I'll meet you at","correctedText":"I'll meet you at","i
         systemInstruction = systemInstruction
     )
 
+    private val replySystemInstruction: Content = content("system") {
+        text(
+            """
+You generate short, natural reply suggestions for a messaging conversation.
+
+INPUT: An incoming message someone just received.
+OUTPUT: Respond with ONE JSON object and nothing else. Schema:
+{
+  "replies": ["<reply 1>", "<reply 2>", "<reply 3>"]
+}
+
+GUIDELINES
+- Exactly 3 distinct replies, each 1 short sentence under 12 words
+- Variety: include one brief/casual, one neutral, one warm or detailed
+- Match the tone, formality, and language of the incoming message
+- Never include placeholders like [name], "...", or template gaps
+- No commentary, no markdown fences — just the JSON object
+
+EXAMPLES
+
+Input: "Are you free tomorrow afternoon for a quick call?"
+Output: {"replies":["Yes, what time works?","Could we do morning instead?","Sure — I'm open after 2pm."]}
+
+Input: "I just got the job!! 🎉"
+Output: {"replies":["Congrats!","That's amazing — so happy for you!","Huge news! When do you start?"]}
+
+Input: "running late, traffic is brutal"
+Output: {"replies":["No worries.","Take your time.","Thanks for the heads up — drive safe."]}
+
+Input: "can you grab milk on the way home"
+Output: {"replies":["Sure thing.","Anything else?","On it — be home in 20."]}
+""".trimIndent()
+        )
+    }
+
+    private val replyModel = GenerativeModel(
+        modelName = "gemini-3.1-flash-lite",
+        apiKey = BuildConfig.GEMINI_API_KEY,
+        generationConfig = generationConfig {
+            temperature = 0.7f
+            topP = 0.95f
+            topK = 40
+            responseMimeType = "application/json"
+        },
+        systemInstruction = replySystemInstruction
+    )
+
     private val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
@@ -146,6 +193,26 @@ Output: {"originalText":"I'll meet you at","correctedText":"I'll meet you at","i
 
             Log.d(TAG, "✅ is_error=${finalResult.is_error}, corrected='${finalResult.correctedText}'")
             finalResult
+        }
+
+    suspend fun suggestReplies(incomingMessage: String): List<String> =
+        withContext(Dispatchers.IO) {
+            Log.d(TAG, "💬 Reply for: \"$incomingMessage\"")
+
+            val response = replyModel.generateContent("Input: \"$incomingMessage\"")
+            val rawText = response.text.orEmpty()
+
+            Log.d(TAG, "🌐 Raw reply response: $rawText")
+
+            val cleanJson = extractJson(rawText)
+            val parsed = json.decodeFromString<ReplyResult>(cleanJson)
+            val replies = parsed.replies
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .take(3)
+
+            Log.d(TAG, "✅ Replies: $replies")
+            replies
         }
 
     private fun extractJson(raw: String): String {

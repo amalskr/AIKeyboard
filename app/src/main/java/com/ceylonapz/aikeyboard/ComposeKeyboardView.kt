@@ -9,9 +9,11 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -193,14 +195,15 @@ fun ComposeKeyboard(
     onDeleteOne: () -> Unit,
     onSendEnter: () -> Unit,
     onDeleteSurrounding: (Int) -> Unit,
-    onLanguageSwitch: () -> Unit
+    onLanguageSwitch: () -> Unit,
+    readClipboard: () -> String?
 ) {
     val colors = if (isSystemInDarkTheme()) DarkKeyboardColors else LightKeyboardColors
 
     CompositionLocalProvider(LocalKeyboardColors provides colors) {
         ComposeKeyboardContent(
             viewModel, onCommitText, onDeleteOne, onSendEnter,
-            onDeleteSurrounding, onLanguageSwitch
+            onDeleteSurrounding, onLanguageSwitch, readClipboard
         )
     }
 }
@@ -212,7 +215,8 @@ private fun ComposeKeyboardContent(
     onDeleteOne: () -> Unit,
     onSendEnter: () -> Unit,
     onDeleteSurrounding: (Int) -> Unit,
-    onLanguageSwitch: () -> Unit
+    onLanguageSwitch: () -> Unit,
+    readClipboard: () -> String?
 ) {
     val colors = KeyboardColors.current
     val result by viewModel.grammarResult
@@ -221,6 +225,9 @@ private fun ComposeKeyboardContent(
     val keyboardMode by viewModel.keyboardMode
     val emojis by viewModel.emojiSuggestions
     val words by viewModel.wordSuggestions
+    val replies by viewModel.replySuggestions
+    val isGeneratingReplies by viewModel.isGeneratingReplies
+    val replyFailed by viewModel.replyFailed
 
     Column(
         modifier = Modifier
@@ -235,6 +242,7 @@ private fun ComposeKeyboardContent(
                 emojis = emojis,
                 isChecking = isChecking,
                 checkFailed = checkFailed,
+                isGeneratingReplies = isGeneratingReplies,
                 onWordSelected = { word ->
                     viewModel.onWordSelected(word, onCommitText)
                 },
@@ -242,7 +250,27 @@ private fun ComposeKeyboardContent(
                     viewModel.onEmojiSelected(emoji, onCommitText)
                 },
                 onAiTapped = { viewModel.onGrammarCheckTapped() },
+                onSmartReplyTapped = {
+                    viewModel.onSmartReplyTapped(readClipboard)
+                },
                 onTap = { viewModel.vibrateKey() }
+            )
+        }
+
+        // ── Smart Reply Bar ────────────────────────────────
+        AnimatedVisibility(
+            visible = replies.isNotEmpty() || isGeneratingReplies || replyFailed != null,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            SmartReplyBar(
+                replies = replies,
+                isGenerating = isGeneratingReplies,
+                errorMessage = replyFailed,
+                onReplySelected = { reply ->
+                    viewModel.onReplySelected(reply, onCommitText)
+                },
+                onDismiss = { viewModel.dismissReplies() }
             )
         }
 
@@ -632,6 +660,101 @@ fun GrammarSuggestionBar(
     }
 }
 
+// ── Smart Reply Bar ──────────────────────────────────────
+@Composable
+fun SmartReplyBar(
+    replies: List<String>,
+    isGenerating: Boolean,
+    errorMessage: String?,
+    onReplySelected: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val colors = KeyboardColors.current
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 6.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(colors.SuggestionBg)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        when {
+            isGenerating -> {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(14.dp),
+                    color = colors.Accent,
+                    strokeWidth = 2.dp
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    "Thinking…",
+                    color = colors.StatusGray,
+                    fontSize = 12.sp
+                )
+            }
+            errorMessage != null -> {
+                Text(
+                    errorMessage,
+                    color = colors.StatusGray,
+                    fontSize = 12.sp,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            else -> {
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    replies.forEach { reply ->
+                        ReplyChip(reply = reply, onClick = { onReplySelected(reply) })
+                    }
+                }
+                Spacer(Modifier.width(6.dp))
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable { onDismiss() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("✕", color = colors.StatusGray, fontSize = 14.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReplyChip(reply: String, onClick: () -> Unit) {
+    val colors = KeyboardColors.current
+    val haptic = LocalHapticFeedback.current
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(colors.SpecialKeyBg)
+            .clickable {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = reply,
+            color = colors.KeyText,
+            fontSize = 13.sp,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
 // ── Gboard-style Top Suggestion Bar ──────────────────────
 @Composable
 fun GboardTopBar(
@@ -639,9 +762,11 @@ fun GboardTopBar(
     emojis: List<String>,
     isChecking: Boolean,
     checkFailed: Boolean,
+    isGeneratingReplies: Boolean,
     onWordSelected: (String) -> Unit,
     onEmojiSelected: (String) -> Unit,
     onAiTapped: () -> Unit,
+    onSmartReplyTapped: () -> Unit,
     onTap: () -> Unit
 ) {
     val colors = KeyboardColors.current
@@ -654,18 +779,22 @@ fun GboardTopBar(
             .padding(horizontal = 4.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Left: 4-dot grid icon (apps/menu)
+        // Left: Smart Reply button (reads clipboard → reply suggestions)
         Box(
             modifier = Modifier
                 .size(40.dp)
                 .clip(RoundedCornerShape(8.dp))
+                .background(
+                    if (isGeneratingReplies) colors.Accent.copy(alpha = 0.3f)
+                    else Color.Transparent
+                )
                 .clickable {
-                    onTap()
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onSmartReplyTapped()
                 },
             contentAlignment = Alignment.Center
         ) {
-            FourDotGrid(color = colors.KeyText)
+            Text("💬", fontSize = 18.sp)
         }
 
         VerticalDivider(colors.DimText)
@@ -769,27 +898,6 @@ private fun AiGradientPill(
             fontSize = 18.sp,
             color = if (isChecking || checkFailed) Color.White else iconColor
         )
-    }
-}
-
-@Composable
-private fun FourDotGrid(color: Color) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(3.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        repeat(2) {
-            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                repeat(2) {
-                    Box(
-                        Modifier
-                            .size(6.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(color)
-                    )
-                }
-            }
-        }
     }
 }
 

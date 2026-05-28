@@ -9,6 +9,11 @@ data class GrammarResult(
     val is_error: Boolean,
 )
 
+@Serializable
+data class ReplyResult(
+    val replies: List<String>,
+)
+
 enum class KeyboardMode {
     QWERTY,
     SYMBOLS_1,

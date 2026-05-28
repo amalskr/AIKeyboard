@@ -1,5 +1,6 @@
 package com.ceylonapz.aikeyboard
 
+import android.content.ClipboardManager
 import android.content.Context
 import android.inputmethodservice.InputMethodService
 import android.os.Build
@@ -57,6 +58,13 @@ class AIKeyboardService : InputMethodService(),
         viewModel.vibrator = resolveVibrator()
     }
 
+    private fun readClipboard(): String? {
+        val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return null
+        val clip = cm.primaryClip ?: return null
+        if (clip.itemCount == 0) return null
+        return clip.getItemAt(0)?.coerceToText(this)?.toString()
+    }
+
     private fun resolveVibrator(): Vibrator? {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             (getSystemService(Context.VIBRATOR_MANAGER_SERVICE)
@@ -102,7 +110,8 @@ class AIKeyboardService : InputMethodService(),
                             (getSystemService(Context.INPUT_METHOD_SERVICE)
                                     as? InputMethodManager)
                                 ?.showInputMethodPicker()
-                        }
+                        },
+                        readClipboard = { readClipboard() }
                     )
                 }
             }
