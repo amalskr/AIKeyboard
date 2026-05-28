@@ -8,6 +8,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -877,26 +878,30 @@ private fun AiGradientPill(
     )
 
     val errorColor = Color(0xFFD64545)
-    val brush = when {
-        isChecking -> {
-            val phase = shift * 600f
-            Brush.linearGradient(
-                colors = gradientColors,
-                start = Offset(phase, 0f),
-                end = Offset(phase + 300f, 120f)
-            )
-        }
+    val animatedBorderBrush = remember(shift) {
+        val phase = shift * 600f
+        Brush.linearGradient(
+            colors = gradientColors,
+            start = Offset(phase, 0f),
+            end = Offset(phase + 300f, 120f)
+        )
+    }
+    val borderBrush = when {
+        isChecking -> animatedBorderBrush
         checkFailed -> Brush.linearGradient(listOf(errorColor, errorColor))
         else -> Brush.linearGradient(listOf(idleColor, idleColor))
     }
+    val borderWidth = if (isChecking || checkFailed) 2.dp else 0.dp
+    val shape = RoundedCornerShape(18.dp)
 
     Box(
         modifier = Modifier
             .padding(start = 4.dp)
             .height(36.dp)
             .widthIn(min = 52.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .background(brush)
+            .clip(shape)
+            .background(idleColor)
+            .border(width = borderWidth, brush = borderBrush, shape = shape)
             .clickable { onClick() }
             .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center
@@ -907,7 +912,7 @@ private fun AiGradientPill(
                 else -> "✨"
             },
             fontSize = 18.sp,
-            color = if (isChecking || checkFailed) Color.White else iconColor
+            color = if (checkFailed) errorColor else iconColor
         )
     }
 }

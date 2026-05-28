@@ -138,7 +138,17 @@ fun SetupScreen() {
                 color = subtitleColor
             )
 
-            Spacer(Modifier.height(48.dp))
+            Spacer(Modifier.height(32.dp))
+
+            // ── Usage card (top of feed) ───────────────────
+            UsageCard(isDark = isDark)
+
+            Spacer(Modifier.height(24.dp))
+
+            // ── Section divider ────────────────────────────
+            SectionDivider(label = "Keyboard Settings", isDark = isDark)
+
+            Spacer(Modifier.height(20.dp))
 
             // ── Step 1: Enable keyboard ────────────────────
             SetupStep(
@@ -204,12 +214,7 @@ fun SetupScreen() {
                 onClick = { }
             )
 
-            Spacer(Modifier.height(16.dp))
-
-            // ── Usage card ─────────────────────────────────
-            UsageCard(isDark = isDark)
-
-            Spacer(Modifier.height(48.dp))
+            Spacer(Modifier.height(32.dp))
 
             // Refresh status button
             OutlinedButton(
@@ -447,6 +452,37 @@ private fun GrammarErrorCard(message: String, isDark: Boolean) {
     ) {
         Text("Check failed", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = labelColor)
         Text(message, fontSize = 12.sp, color = bodyColor)
+    }
+}
+
+@Composable
+fun SectionDivider(label: String, isDark: Boolean) {
+    val lineColor = if (isDark) Color(0xFF2C3E5C) else Color(0xFFCFD3DC)
+    val labelColor = if (isDark) Color(0xFF888899) else Color(0xFF666677)
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier
+                .weight(1f)
+                .height(1.dp)
+                .background(lineColor)
+        )
+        Text(
+            label,
+            color = labelColor,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(horizontal = 12.dp)
+        )
+        Box(
+            Modifier
+                .weight(1f)
+                .height(1.dp)
+                .background(lineColor)
+        )
     }
 }
 
