@@ -1,13 +1,16 @@
 package com.ceylonapz.aikeyboard
 
 import android.os.Build
+import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.Vibrator
+import androidx.annotation.RequiresApi
 import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class KeyboardViewModel : ViewModel() {
@@ -18,31 +21,34 @@ class KeyboardViewModel : ViewModel() {
 
     var vibrator: Vibrator? = null
 
-    fun vibrateKey() {
-        vibrator?.let {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                it.vibrate(VibrationEffect.createOneShot(30, 80))
+    fun vibrateKey() = doVibrate(durationMs = 35)
+
+    private fun vibrateLong() = doVibrate(durationMs = 100)
+
+    private fun doVibrate(durationMs: Long) {
+        val v = vibrator ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val effect = VibrationEffect.createOneShot(durationMs, VibrationEffect.DEFAULT_AMPLITUDE)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                vibrateWithTouchUsage(v, effect)
             } else {
-                @Suppress("DEPRECATION")
-                it.vibrate(30)
+                v.vibrate(effect)
             }
+        } else {
+            @Suppress("DEPRECATION")
+            v.vibrate(durationMs)
         }
     }
 
-    private fun vibrateLong() {
-        vibrator?.let {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                it.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
-            } else {
-                @Suppress("DEPRECATION")
-                it.vibrate(100)
-            }
-        }
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    private fun vibrateWithTouchUsage(v: Vibrator, effect: VibrationEffect) {
+        v.vibrate(effect, VibrationAttributes.createForUsage(VibrationAttributes.USAGE_TOUCH))
     }
 
     val sentenceBuffer = StringBuilder()
     val grammarResult = mutableStateOf<GrammarResult?>(null)
     val isChecking = mutableStateOf(false)
+    val checkFailed = mutableStateOf(false)
     val isShiftOn = mutableStateOf(false)
     val isConnected = mutableStateOf(true)
     val keyboardMode = mutableStateOf(KeyboardMode.QWERTY)
@@ -201,6 +207,7 @@ class KeyboardViewModel : ViewModel() {
 
         checkJob?.cancel()
         isChecking.value = true
+        checkFailed.value = false
         Log.d(TAG, "Sending to Gemini: '$textToCheck'")
 
         checkJob = viewModelScope.launch {
@@ -221,7 +228,13 @@ class KeyboardViewModel : ViewModel() {
                 Log.e(TAG, "Check failed: ${e.message}", e)
                 grammarResult.value = null
                 isConnected.value = false
+                checkFailed.value = true
                 vibrateLong()
+                // Auto-clear the failure flash after 2.5s
+                viewModelScope.launch {
+                    delay(2500)
+                    checkFailed.value = false
+                }
             } finally {
                 isChecking.value = false
             }

@@ -217,6 +217,7 @@ private fun ComposeKeyboardContent(
     val colors = KeyboardColors.current
     val result by viewModel.grammarResult
     val isChecking by viewModel.isChecking
+    val checkFailed by viewModel.checkFailed
     val keyboardMode by viewModel.keyboardMode
     val emojis by viewModel.emojiSuggestions
     val words by viewModel.wordSuggestions
@@ -233,6 +234,7 @@ private fun ComposeKeyboardContent(
                 words = words,
                 emojis = emojis,
                 isChecking = isChecking,
+                checkFailed = checkFailed,
                 onWordSelected = { word ->
                     viewModel.onWordSelected(word, onCommitText)
                 },
@@ -636,6 +638,7 @@ fun GboardTopBar(
     words: List<String>,
     emojis: List<String>,
     isChecking: Boolean,
+    checkFailed: Boolean,
     onWordSelected: (String) -> Unit,
     onEmojiSelected: (String) -> Unit,
     onAiTapped: () -> Unit,
@@ -694,6 +697,7 @@ fun GboardTopBar(
         // Right: AI Grammar Check button — animated gradient while checking
         AiGradientPill(
             isChecking = isChecking,
+            checkFailed = checkFailed,
             idleColor = colors.KeyBg,
             iconColor = colors.KeyText
         ) {
@@ -707,6 +711,7 @@ fun GboardTopBar(
 @Composable
 private fun AiGradientPill(
     isChecking: Boolean,
+    checkFailed: Boolean,
     idleColor: Color,
     iconColor: Color,
     onClick: () -> Unit
@@ -731,15 +736,18 @@ private fun AiGradientPill(
         Color(0xFF6F8B5C)  // sage (loop)
     )
 
-    val brush = if (isChecking) {
-        val phase = shift * 600f
-        Brush.linearGradient(
-            colors = gradientColors,
-            start = Offset(phase, 0f),
-            end = Offset(phase + 300f, 120f)
-        )
-    } else {
-        Brush.linearGradient(listOf(idleColor, idleColor))
+    val errorColor = Color(0xFFD64545)
+    val brush = when {
+        isChecking -> {
+            val phase = shift * 600f
+            Brush.linearGradient(
+                colors = gradientColors,
+                start = Offset(phase, 0f),
+                end = Offset(phase + 300f, 120f)
+            )
+        }
+        checkFailed -> Brush.linearGradient(listOf(errorColor, errorColor))
+        else -> Brush.linearGradient(listOf(idleColor, idleColor))
     }
 
     Box(
@@ -754,9 +762,12 @@ private fun AiGradientPill(
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "✨",
+            text = when {
+                checkFailed -> "!"
+                else -> "✨"
+            },
             fontSize = 18.sp,
-            color = if (isChecking) Color.White else iconColor
+            color = if (isChecking || checkFailed) Color.White else iconColor
         )
     }
 }
