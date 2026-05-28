@@ -88,9 +88,9 @@ class AIKeyboardService : InputMethodService(),
                                 ?.deleteSurroundingText(len, 0)
                         },
                         onLanguageSwitch = {
-                            val imm = getSystemService(Context.INPUT_METHOD_SERVICE)
-                                    as InputMethodManager
-                            imm.showInputMethodPicker()
+                            (getSystemService(Context.INPUT_METHOD_SERVICE)
+                                    as? InputMethodManager)
+                                ?.showInputMethodPicker()
                         }
                     )
                 }
