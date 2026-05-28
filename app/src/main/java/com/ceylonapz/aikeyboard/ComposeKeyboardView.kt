@@ -1,20 +1,38 @@
 package com.ceylonapz.aikeyboard
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -22,6 +40,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 
 // ── Color Theme ────────────────────────────────────────────
 data class KeyboardColorScheme(
@@ -35,35 +54,38 @@ data class KeyboardColorScheme(
     val ErrorBg: Color,
     val StatusGray: Color,
     val DimText: Color,
-    val EmojiRowBg: Color
+    val EmojiRowBg: Color,
+    val SpecialKeyBg: Color
 )
 
 private val DarkKeyboardColors = KeyboardColorScheme(
-    Bg = Color(0xFF1A1A2E),
-    KeyBg = Color(0xFF16213E),
-    KeyPressed = Color(0xFF0F3460),
-    KeyText = Color(0xFFE0E0E0),
-    Accent = Color(0xFF7C5CFC),
-    SuggestionBg = Color(0xFF1A2E1A),
-    CorrectGreen = Color(0xFF66BB6A),
-    ErrorBg = Color(0xFF2E1A1A),
-    StatusGray = Color(0xFF888899),
-    DimText = Color(0xFF555566),
-    EmojiRowBg = Color(0xFF1E1E3A)
+    Bg = Color(0xFF1B2A1B),
+    KeyBg = Color(0xFF2C3D2C),
+    KeyPressed = Color(0xFF3D4F3D),
+    KeyText = Color(0xFFEAEEE3),
+    Accent = Color(0xFF8FAA7A),
+    SuggestionBg = Color(0xFF1B2A1B),
+    CorrectGreen = Color(0xFF8BC78F),
+    ErrorBg = Color(0xFF3A1F1F),
+    StatusGray = Color(0xFFA8B5A0),
+    DimText = Color(0xFF7A8A6A),
+    EmojiRowBg = Color(0xFF1B2A1B),
+    SpecialKeyBg = Color(0xFF3D4F3D)
 )
 
 private val LightKeyboardColors = KeyboardColorScheme(
-    Bg = Color(0xFFE8E8EE),
+    Bg = Color(0xFFDDE7D2),
     KeyBg = Color(0xFFFFFFFF),
-    KeyPressed = Color(0xFFD0D0DA),
-    KeyText = Color(0xFF1A1A2E),
-    Accent = Color(0xFF6B4CE6),
-    SuggestionBg = Color(0xFFDFF5DF),
-    CorrectGreen = Color(0xFF388E3C),
+    KeyPressed = Color(0xFFC2D2B4),
+    KeyText = Color(0xFF1A1A1A),
+    Accent = Color(0xFF6F8B5C),
+    SuggestionBg = Color(0xFFDDE7D2),
+    CorrectGreen = Color(0xFF2E7D32),
     ErrorBg = Color(0xFFFDE8E8),
-    StatusGray = Color(0xFF666677),
-    DimText = Color(0xFF999AAA),
-    EmojiRowBg = Color(0xFFDDDDE8)
+    StatusGray = Color(0xFF4F5F40),
+    DimText = Color(0xFF7A8A6A),
+    EmojiRowBg = Color(0xFFDDE7D2),
+    SpecialKeyBg = Color(0xFFCFDDC1)
 )
 
 val LocalKeyboardColors = staticCompositionLocalOf { DarkKeyboardColors }
@@ -73,10 +95,100 @@ object KeyboardColors {
         @Composable get() = LocalKeyboardColors.current
 }
 
+// ── Layout Data ──────────────────────────────────────────
 val NUMBER_ROW = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
 val ROW1 = listOf("q", "w", "e", "r", "t", "y", "u", "i", "o", "p")
 val ROW2 = listOf("a", "s", "d", "f", "g", "h", "j", "k", "l")
 val ROW3 = listOf("z", "x", "c", "v", "b", "n", "m")
+
+// Symbol page 1
+val SYMBOL_ROW1 = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
+val SYMBOL_ROW2 = listOf("-", "/", ":", ";", "(", ")", "\$", "&", "@", "\"")
+val SYMBOL_ROW3 = listOf(".", ",", "?", "!", "'")
+
+// Symbol page 2
+val SYMBOL2_ROW1 = listOf("[", "]", "{", "}", "#", "%", "^", "*", "+", "=")
+val SYMBOL2_ROW2 = listOf("_", "\\", "|", "~", "<", ">", "€", "£", "¥", "•")
+val SYMBOL2_ROW3 = listOf(".", ",", "?", "!", "'")
+
+// ── Emoji Data ──────────────────────────────────────────
+data class EmojiCategory(val icon: String, val name: String, val emojis: List<String>)
+
+val EMOJI_CATEGORIES = listOf(
+    EmojiCategory("😀", "Smileys", listOf(
+        "😀", "😃", "😄", "😁", "😆",
+        "😅", "😂", "🤣", "😊", "😇",
+        "🙂", "🙃", "😉", "😌", "😍",
+        "🥰", "😘", "😗", "😙", "😚",
+        "😋", "😛", "😜", "🤪", "😝",
+        "🤑", "🤗", "🤭", "🤫", "🤔",
+        "🤐", "🤨", "😐", "😑", "😶",
+        "😏", "😒", "🙄", "😬", "🤥",
+        "😔", "😞", "😟", "😕", "🙁",
+        "😣", "😖", "😫", "😩", "🥺",
+        "😢", "😭", "😤", "😠", "😡",
+        "🤬", "😱", "😨", "😰", "😥"
+    )),
+    EmojiCategory("❤️", "Love", listOf(
+        "❤️", "🧡", "💛", "💚", "💙",
+        "💜", "🖤", "💔", "❣️", "💕",
+        "💞", "💓", "💗", "💖", "💘",
+        "💝", "💋", "💌", "💐", "🌹",
+        "🌺", "🌻", "🌷", "🌸", "🌼"
+    )),
+    EmojiCategory("👋", "Hands", listOf(
+        "👋", "🤚", "🖐️", "✋", "🖖",
+        "👌", "🤏", "✌️", "🤞", "🤟",
+        "🤘", "🤙", "👈", "👉", "👆",
+        "👇", "☝️", "👍", "👎", "✊",
+        "👊", "🤛", "🤜", "👏", "🙌",
+        "👐", "🤲", "🤝", "🙏", "✍️",
+        "💅", "🤳", "💪"
+    )),
+    EmojiCategory("🚀", "Travel", listOf(
+        "🚀", "✈️", "🚗", "🚕", "🚌",
+        "🚎", "🚂", "🚆", "🚈", "🚝",
+        "🚲", "🛵", "🚗", "🏠", "🏢",
+        "🏖️", "🏔️", "🌅", "🌄",
+        "🌇", "🌆", "🏙️", "🌃", "🌉",
+        "🗼", "🗽", "🏟️", "🏡"
+    )),
+    EmojiCategory("🍔", "Food", listOf(
+        "🍔", "🍕", "🌮", "🌯", "🍳",
+        "🥞", "🥓", "🥩", "🍗", "🍖",
+        "🌭", "🍟", "🥪", "🍞", "🧀",
+        "🥚", "🍝", "🍜", "🍲", "🥘",
+        "🍰", "🎂", "🍩", "🍪", "🍫",
+        "🍬", "🍭", "🍮", "🍯", "☕",
+        "🍵", "🍺", "🍷", "🥤", "🧃"
+    )),
+    EmojiCategory("⚽", "Activities", listOf(
+        "⚽", "🏀", "🏈", "⚾", "🥎",
+        "🎾", "🏐", "🏉", "🥏", "🎱",
+        "🏓", "🏸", "🥊", "🥋", "⛳",
+        "🏇", "🏊", "🏄", "🎿", "⛷️",
+        "🎯", "🎣", "🎮", "🎲", "🎰",
+        "🎳", "🎭", "🎨", "🎵", "🎶"
+    )),
+    EmojiCategory("🐶", "Animals", listOf(
+        "🐶", "🐱", "🐭", "🐹", "🐰",
+        "🦊", "🐻", "🐼", "🐨", "🐯",
+        "🦁", "🐮", "🐷", "🐸", "🐵",
+        "🐔", "🐧", "🐦", "🦅", "🦆",
+        "🦉", "🐝", "🐛", "🦋", "🐌",
+        "🐢", "🐍", "🦎", "🐙", "🐠",
+        "🐡", "🐬", "🐳", "🦈", "🐘"
+    )),
+    EmojiCategory("💡", "Objects", listOf(
+        "💡", "🔦", "💻", "📱", "📷",
+        "🎥", "📺", "📻", "⏰", "⌚",
+        "📧", "📄", "📚", "✏️", "📝",
+        "🔑", "🔒", "🔓", "🚨", "🔔",
+        "🏆", "🎁", "🎈", "🎉", "🎊",
+        "⭐", "🌟", "🔥", "🌈", "☀️",
+        "🌤️", "⛅", "🌧️", "⚡", "❄️"
+    ))
+)
 
 // ── Main Compose Keyboard ──────────────────────────────────
 @Composable
@@ -85,12 +197,17 @@ fun ComposeKeyboard(
     onCommitText: (String) -> Unit,
     onDeleteOne: () -> Unit,
     onSendEnter: () -> Unit,
-    onDeleteSurrounding: (Int) -> Unit
+    onDeleteSurrounding: (Int) -> Unit,
+    onLanguageSwitch: () -> Unit,
+    readClipboard: () -> String?
 ) {
     val colors = if (isSystemInDarkTheme()) DarkKeyboardColors else LightKeyboardColors
 
     CompositionLocalProvider(LocalKeyboardColors provides colors) {
-        ComposeKeyboardContent(viewModel, onCommitText, onDeleteOne, onSendEnter, onDeleteSurrounding)
+        ComposeKeyboardContent(
+            viewModel, onCommitText, onDeleteOne, onSendEnter,
+            onDeleteSurrounding, onLanguageSwitch, readClipboard
+        )
     }
 }
 
@@ -100,32 +217,63 @@ private fun ComposeKeyboardContent(
     onCommitText: (String) -> Unit,
     onDeleteOne: () -> Unit,
     onSendEnter: () -> Unit,
-    onDeleteSurrounding: (Int) -> Unit
+    onDeleteSurrounding: (Int) -> Unit,
+    onLanguageSwitch: () -> Unit,
+    readClipboard: () -> String?
 ) {
     val colors = KeyboardColors.current
     val result by viewModel.grammarResult
-    val status by viewModel.statusMessage
     val isChecking by viewModel.isChecking
-    val isShift by viewModel.isShiftOn
+    val checkFailed by viewModel.checkFailed
+    val keyboardMode by viewModel.keyboardMode
     val emojis by viewModel.emojiSuggestions
+    val words by viewModel.wordSuggestions
+    val replies by viewModel.replySuggestions
+    val isGeneratingReplies by viewModel.isGeneratingReplies
+    val replyFailed by viewModel.replyFailed
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(colors.Bg)
-            .padding(horizontal = 3.dp, vertical = 4.dp)
+            .padding(horizontal = 4.dp, vertical = 4.dp)
     ) {
-        // ── Emoji Suggestion Row ────────────────────────────
+        // ── Gboard-style Top Bar (always visible in QWERTY/Symbols) ──
+        if (keyboardMode != KeyboardMode.EMOJI) {
+            GboardTopBar(
+                words = words,
+                emojis = emojis,
+                isChecking = isChecking,
+                checkFailed = checkFailed,
+                isGeneratingReplies = isGeneratingReplies,
+                onWordSelected = { word ->
+                    viewModel.onWordSelected(word, onCommitText)
+                },
+                onEmojiSelected = { emoji ->
+                    viewModel.onEmojiSelected(emoji, onCommitText)
+                },
+                onAiTapped = { viewModel.onGrammarCheckTapped() },
+                onSmartReplyTapped = {
+                    viewModel.onSmartReplyTapped(readClipboard)
+                },
+                onTap = { viewModel.vibrateKey() }
+            )
+        }
+
+        // ── Smart Reply Bar ────────────────────────────────
         AnimatedVisibility(
-            visible = emojis.isNotEmpty(),
+            visible = replies.isNotEmpty() || isGeneratingReplies || replyFailed != null,
             enter = expandVertically() + fadeIn(),
             exit = shrinkVertically() + fadeOut()
         ) {
-            EmojiSuggestionRow(
-                emojis = emojis,
-                onEmojiSelected = { emoji ->
-                    viewModel.onEmojiSelected(emoji, onCommitText)
-                }
+            SmartReplyBar(
+                replies = replies,
+                isGenerating = isGeneratingReplies,
+                errorMessage = replyFailed,
+                onReplySelected = { reply ->
+                    viewModel.onReplySelected(reply, onDeleteSurrounding, onCommitText)
+                },
+                onDismiss = { viewModel.dismissReplies() }
             )
         }
 
@@ -146,141 +294,322 @@ private fun ComposeKeyboardContent(
             }
         }
 
-        // ── Status Bar ─────────────────────────────────────
-        AnimatedVisibility(
-            visible = status.isNotEmpty() && (result == null || !result!!.is_error)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (isChecking) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(12.dp),
-                        strokeWidth = 2.dp,
-                        color = colors.Accent
-                    )
-                    Spacer(Modifier.width(8.dp))
-                }
-                Text(
-                    text = status,
-                    color = if (status.contains("✅")) colors.CorrectGreen
-                    else colors.StatusGray,
-                    fontSize = 12.sp
-                )
-            }
-        }
-
-        Spacer(Modifier.height(2.dp))
-
-        // ── Number Row: 1234567890 ────────────────────────────
-        KeyRow(NUMBER_ROW, isShift = false) { char ->
-            viewModel.onCharTyped(char, onCommitText)
-        }
-
-        // ── Row 1: QWERTYUIOP ──────────────────────────────
-        KeyRow(ROW1, isShift) { viewModel.onCharTyped(it, onCommitText) }
-
-        // ── Row 2: ASDFGHJKL ───────────────────────────────
-        KeyRow(ROW2, isShift, sidePadding = 18.dp) {
-            viewModel.onCharTyped(it, onCommitText)
-        }
-
-        // ── Row 3: Shift + ZXCVBNM + Backspace ────────────
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 3.dp),
-            horizontalArrangement = Arrangement.Center
-        ) {
-            SpecialKey(
-                label = if (isShift) "⇧" else "⇪",
-                weight = 1.4f,
-                bgColor = if (isShift) colors.Accent else colors.KeyBg
-            ) { viewModel.onShiftToggle() }
-
-            ROW3.forEach { key ->
-                KeyButton(
-                    label = if (isShift) key.uppercase() else key,
-                    modifier = Modifier.weight(1f)
-                ) { viewModel.onCharTyped(key[0], onCommitText) }
-            }
-
-            SpecialKey(
-                label = "⌫",
-                weight = 1.4f
-            ) { viewModel.onDeleteTyped(onDeleteOne) }
-        }
-
-        // ── Row 4: Punctuation + Space + Enter ─────────────
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 3.dp),
-            horizontalArrangement = Arrangement.Center
-        ) {
-            // Grammar check / stop button
-            SpecialKey(
-                label = if (isChecking) "■" else "✓ AI",
-                weight = 1.3f,
-                bgColor = if (isChecking) Color(0xFFCC4444) else colors.Accent.copy(alpha = 0.4f)
-            ) { viewModel.onGrammarCheckTapped() }
-
-            // Exclamation
-            KeyButton(
-                label = "!",
-                modifier = Modifier.weight(0.8f),
-                fontSize = 20
-            ) { viewModel.onExclamationTyped(onCommitText) }
-
-            // Question mark
-            KeyButton(
-                label = "?",
-                modifier = Modifier.weight(0.8f),
-                fontSize = 20
-            ) { viewModel.onQuestionMarkTyped(onCommitText) }
-
-            // Space bar
-            Box(
-                modifier = Modifier
-                    .weight(3.5f)
-                    .height(52.dp)
-                    .padding(horizontal = 3.dp, vertical = 3.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(colors.KeyBg)
-                    .clickable { viewModel.onSpaceTyped(onCommitText) },
-                contentAlignment = Alignment.Center
-            ) {
-                Text("space", color = colors.DimText, fontSize = 13.sp)
-            }
-
-            // Period
-            KeyButton(
-                label = ".",
-                modifier = Modifier.weight(0.8f),
-                fontSize = 22
-            ) { viewModel.onPeriodTyped(onCommitText) }
-
-            // Comma
-            KeyButton(
-                label = ",",
-                modifier = Modifier.weight(0.8f),
-                fontSize = 20
-            ) { if (!isChecking) { onCommitText(","); viewModel.sentenceBuffer.append(",") } }
-
-            // Enter
-            SpecialKey(
-                label = "↵",
-                weight = 1.3f,
-                bgColor = colors.Accent
-            ) { viewModel.onEnter(onSendEnter) }
+        // ── Mode-specific layouts ───────────────────────────
+        when (keyboardMode) {
+            KeyboardMode.QWERTY -> QwertyLayout(viewModel, onCommitText, onDeleteOne, onSendEnter, onLanguageSwitch)
+            KeyboardMode.SYMBOLS_1 -> SymbolLayout(viewModel, page = 1, onCommitText, onDeleteOne, onSendEnter, onLanguageSwitch)
+            KeyboardMode.SYMBOLS_2 -> SymbolLayout(viewModel, page = 2, onCommitText, onDeleteOne, onSendEnter, onLanguageSwitch)
+            KeyboardMode.EMOJI -> EmojiPickerLayout(viewModel, onCommitText, onDeleteOne)
         }
     }
 }
 
-// ── Grammar Suggestion Bar (matches new GrammarResult) ─────
+// ── QWERTY Layout ────────────────────────────────────────
+@Composable
+private fun QwertyLayout(
+    viewModel: KeyboardViewModel,
+    onCommitText: (String) -> Unit,
+    onDeleteOne: () -> Unit,
+    onSendEnter: () -> Unit,
+    onLanguageSwitch: () -> Unit
+) {
+    val colors = KeyboardColors.current
+    val isShift by viewModel.isShiftOn
+
+    // Row 0: 1234567890
+    KeyRow(NUMBER_ROW, isShift = false) { ch ->
+        viewModel.onSymbolTyped(ch.toString(), onCommitText)
+    }
+
+    // Row 1: QWERTYUIOP
+    KeyRow(ROW1, isShift) { viewModel.onCharTyped(it, onCommitText) }
+
+    // Row 2: ASDFGHJKL
+    KeyRow(ROW2, isShift, sidePadding = 18.dp) {
+        viewModel.onCharTyped(it, onCommitText)
+    }
+
+    // Row 3: Shift + ZXCVBNM + Backspace
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp),
+        horizontalArrangement = Arrangement.Center
+    ) {
+        SpecialKey(
+            label = "Shift",
+            painter = painterResource(R.drawable.ic_shift),
+            weight = 1.4f,
+            bgColor = if (isShift) colors.Accent else colors.SpecialKeyBg
+        ) { viewModel.onShiftToggle() }
+
+        ROW3.forEach { key ->
+            KeyButton(
+                label = if (isShift) key.uppercase() else key,
+                modifier = Modifier.weight(1f)
+            ) { viewModel.onCharTyped(key[0], onCommitText) }
+        }
+
+        RepeatableSpecialKey(
+            label = "Backspace",
+            painter = painterResource(R.drawable.ic_backspace),
+            weight = 1.4f,
+            bgColor = colors.SpecialKeyBg
+        ) { viewModel.onDeleteTyped(onDeleteOne) }
+    }
+
+    // Row 4: ?123 | emoji | globe | space | . | enter
+    BottomRow(
+        viewModel = viewModel,
+        onCommitText = onCommitText,
+        onSendEnter = onSendEnter,
+        onLanguageSwitch = onLanguageSwitch,
+        leftLabel = "?123",
+        onLeftKey = { viewModel.switchToSymbols() }
+    )
+}
+
+// ── Symbol Layout ────────────────────────────────────────
+@Composable
+private fun SymbolLayout(
+    viewModel: KeyboardViewModel,
+    page: Int,
+    onCommitText: (String) -> Unit,
+    onDeleteOne: () -> Unit,
+    onSendEnter: () -> Unit,
+    onLanguageSwitch: () -> Unit
+) {
+    val colors = KeyboardColors.current
+    val row1 = if (page == 1) SYMBOL_ROW1 else SYMBOL2_ROW1
+    val row2 = if (page == 1) SYMBOL_ROW2 else SYMBOL2_ROW2
+    val row3 = if (page == 1) SYMBOL_ROW3 else SYMBOL2_ROW3
+
+    // Row 1
+    SymbolKeyRow(row1) { viewModel.onSymbolTyped(it, onCommitText) }
+
+    // Row 2
+    SymbolKeyRow(row2) { viewModel.onSymbolTyped(it, onCommitText) }
+
+    // Row 3: page toggle + symbols + backspace
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp),
+        horizontalArrangement = Arrangement.Center
+    ) {
+        SpecialKey(
+            label = if (page == 1) "#+=​" else "123",
+            weight = 1.4f,
+            bgColor = colors.SpecialKeyBg
+        ) { viewModel.toggleSymbolPage() }
+
+        row3.forEach { sym ->
+            KeyButton(
+                label = sym,
+                modifier = Modifier.weight(1f),
+                fontSize = 18
+            ) { viewModel.onSymbolTyped(sym, onCommitText) }
+        }
+
+        RepeatableSpecialKey(
+            label = "Backspace",
+            painter = painterResource(R.drawable.ic_backspace),
+            weight = 1.4f,
+            bgColor = colors.SpecialKeyBg
+        ) { viewModel.onDeleteTyped(onDeleteOne) }
+    }
+
+    // Row 4: ABC | emoji | globe | space | . | enter
+    BottomRow(
+        viewModel = viewModel,
+        onCommitText = onCommitText,
+        onSendEnter = onSendEnter,
+        onLanguageSwitch = onLanguageSwitch,
+        leftLabel = "ABC",
+        onLeftKey = { viewModel.switchToQwerty() }
+    )
+}
+
+// ── Shared Bottom Row ────────────────────────────────────
+@Composable
+private fun BottomRow(
+    viewModel: KeyboardViewModel,
+    onCommitText: (String) -> Unit,
+    onSendEnter: () -> Unit,
+    onLanguageSwitch: () -> Unit,
+    leftLabel: String,
+    onLeftKey: () -> Unit
+) {
+    val colors = KeyboardColors.current
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // ?123 or ABC
+        SpecialKey(
+            label = leftLabel,
+            weight = 1.4f,
+            bgColor = colors.SpecialKeyBg
+        ) { onLeftKey() }
+
+        // Emoji
+        SpecialKey(
+            label = "🙂",
+            weight = 0.9f,
+            bgColor = colors.SpecialKeyBg
+        ) { viewModel.switchToEmoji() }
+
+        // Globe (language switch)
+        SpecialKey(
+            label = "🌐",
+            weight = 0.9f,
+            bgColor = colors.SpecialKeyBg
+        ) { viewModel.onLanguageSwitchTapped(onLanguageSwitch) }
+
+        // Space bar
+        Box(
+            modifier = Modifier
+                .weight(4.0f)
+                .height(54.dp)
+                .padding(horizontal = 3.dp, vertical = 3.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(colors.KeyBg)
+                .clickable { viewModel.onSpaceTyped(onCommitText) },
+            contentAlignment = Alignment.Center
+        ) {
+            Text("English", color = colors.DimText, fontSize = 14.sp)
+        }
+
+        // Period
+        SpecialKey(
+            label = ".",
+            weight = 0.9f,
+            bgColor = colors.SpecialKeyBg,
+            fontSize = 20
+        ) { viewModel.onPeriodTyped(onCommitText) }
+
+        // Enter
+        SpecialKey(
+            label = "Enter",
+            painter = painterResource(R.drawable.ic_keyboard_return),
+            weight = 1.4f,
+            bgColor = colors.SpecialKeyBg,
+            fontSize = 20
+        ) { viewModel.onEnter(onSendEnter) }
+    }
+}
+
+// ── Emoji Picker Layout ──────────────────────────────────
+@Composable
+private fun EmojiPickerLayout(
+    viewModel: KeyboardViewModel,
+    onCommitText: (String) -> Unit,
+    onDeleteOne: () -> Unit
+) {
+    val colors = KeyboardColors.current
+    var selectedCategory by remember { mutableIntStateOf(0) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(280.dp)
+    ) {
+        // Category tabs
+        LazyRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(colors.EmojiRowBg)
+                .padding(vertical = 4.dp, horizontal = 4.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            itemsIndexed(EMOJI_CATEGORIES) { index, category ->
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(
+                            if (index == selectedCategory) colors.Accent.copy(alpha = 0.3f)
+                            else Color.Transparent
+                        )
+                        .clickable {
+                            viewModel.vibrateKey()
+                            selectedCategory = index
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(category.icon, fontSize = 20.sp)
+                }
+            }
+        }
+
+        // Category name
+        Text(
+            text = EMOJI_CATEGORIES[selectedCategory].name,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+            color = colors.StatusGray,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium
+        )
+
+        // Emoji grid
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(8),
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 4.dp),
+            contentPadding = PaddingValues(4.dp)
+        ) {
+            items(EMOJI_CATEGORIES[selectedCategory].emojis) { emoji ->
+                Box(
+                    modifier = Modifier
+                        .aspectRatio(1f)
+                        .padding(2.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .clickable {
+                            viewModel.onEmojiSelected(emoji, onCommitText)
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(emoji, fontSize = 24.sp)
+                }
+            }
+        }
+
+        // Bottom bar: ABC + Backspace
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(colors.Bg)
+                .padding(horizontal = 6.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(colors.SpecialKeyBg)
+                    .clickable { viewModel.switchToQwerty() }
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("ABC", color = colors.KeyText, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            }
+
+            Spacer(Modifier.weight(1f))
+
+            RepeatableBoxKey(
+                label = "Backspace",
+                painter = painterResource(R.drawable.ic_backspace),
+                bgColor = colors.SpecialKeyBg
+            ) { viewModel.onDeleteTyped(onDeleteOne) }
+        }
+    }
+}
+
+// ── Grammar Suggestion Bar ───────────────────────────────
 @Composable
 fun GrammarSuggestionBar(
     result: GrammarResult,
@@ -296,26 +625,12 @@ fun GrammarSuggestionBar(
             .background(colors.ErrorBg)
             .padding(10.dp)
     ) {
-        // Original text label
-        Text(
-            text = "Original:",
-            color = colors.StatusGray,
-            fontSize = 10.sp
-        )
-        Text(
-            text = result.originalText,
-            color = colors.StatusGray,
-            fontSize = 13.sp
-        )
+        Text(text = "Original:", color = colors.StatusGray, fontSize = 10.sp)
+        Text(text = result.originalText, color = colors.StatusGray, fontSize = 13.sp)
 
         Spacer(Modifier.height(6.dp))
 
-        // Corrected text preview
-        Text(
-            text = "Suggested:",
-            color = colors.StatusGray,
-            fontSize = 10.sp
-        )
+        Text(text = "Suggested:", color = colors.StatusGray, fontSize = 10.sp)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -333,7 +648,6 @@ fun GrammarSuggestionBar(
 
         Spacer(Modifier.height(8.dp))
 
-        // Action buttons
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End
@@ -344,9 +658,7 @@ fun GrammarSuggestionBar(
             Spacer(Modifier.width(8.dp))
             Button(
                 onClick = onAccept,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = colors.Accent
-                ),
+                colors = ButtonDefaults.buttonColors(containerColor = colors.Accent),
                 shape = RoundedCornerShape(8.dp),
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp)
             ) {
@@ -356,43 +668,293 @@ fun GrammarSuggestionBar(
     }
 }
 
-// ── Emoji Suggestion Row ────────────────────────────────
+// ── Smart Reply Bar ──────────────────────────────────────
 @Composable
-fun EmojiSuggestionRow(
-    emojis: List<String>,
-    onEmojiSelected: (String) -> Unit
+fun SmartReplyBar(
+    replies: List<String>,
+    isGenerating: Boolean,
+    errorMessage: String?,
+    onReplySelected: (String) -> Unit,
+    onDismiss: () -> Unit
 ) {
     val colors = KeyboardColors.current
+    val haptic = LocalHapticFeedback.current
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 6.dp, vertical = 2.dp)
-            .clip(RoundedCornerShape(6.dp))
-            .background(colors.EmojiRowBg)
-            .padding(horizontal = 6.dp, vertical = 3.dp),
-        horizontalArrangement = Arrangement.Center,
+            .padding(horizontal = 6.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(colors.SuggestionBg)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        emojis.forEach { emoji ->
-            Box(
-                modifier = Modifier
-                    .padding(horizontal = 6.dp)
-                    .size(30.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(colors.Accent.copy(alpha = 0.15f))
-                    .clickable { onEmojiSelected(emoji) },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = emoji,
-                    fontSize = 16.sp
+        when {
+            isGenerating -> {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(14.dp),
+                    color = colors.Accent,
+                    strokeWidth = 2.dp
                 )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    "Thinking…",
+                    color = colors.StatusGray,
+                    fontSize = 12.sp
+                )
+            }
+            errorMessage != null -> {
+                Text(
+                    errorMessage,
+                    color = colors.StatusGray,
+                    fontSize = 12.sp,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            else -> {
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    replies.forEach { reply ->
+                        ReplyChip(reply = reply, onClick = { onReplySelected(reply) })
+                    }
+                }
+                Spacer(Modifier.width(6.dp))
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onDismiss()
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("✕", color = colors.StatusGray, fontSize = 14.sp)
+                }
             }
         }
     }
 }
 
-// ── Reusable Key Components ────────────────────────────────
+@Composable
+private fun ReplyChip(reply: String, onClick: () -> Unit) {
+    val colors = KeyboardColors.current
+    val haptic = LocalHapticFeedback.current
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(colors.SpecialKeyBg)
+            .clickable {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onClick()
+            }
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = reply,
+            color = colors.KeyText,
+            fontSize = 13.sp,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+// ── Gboard-style Top Suggestion Bar ──────────────────────
+@Composable
+fun GboardTopBar(
+    words: List<String>,
+    emojis: List<String>,
+    isChecking: Boolean,
+    checkFailed: Boolean,
+    isGeneratingReplies: Boolean,
+    onWordSelected: (String) -> Unit,
+    onEmojiSelected: (String) -> Unit,
+    onAiTapped: () -> Unit,
+    onSmartReplyTapped: () -> Unit,
+    onTap: () -> Unit
+) {
+    val colors = KeyboardColors.current
+    val haptic = LocalHapticFeedback.current
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .padding(horizontal = 4.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Left: Smart Reply button (reads clipboard → reply suggestions)
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(
+                    if (isGeneratingReplies) colors.Accent.copy(alpha = 0.3f)
+                    else Color.Transparent
+                )
+                .clickable {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onSmartReplyTapped()
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Text("💬", fontSize = 18.sp)
+        }
+
+        VerticalDivider(colors.DimText)
+
+        // Middle: suggestions (words + emojis)
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            val visibleWords = words.take(2)
+            visibleWords.forEachIndexed { index, word ->
+                if (index > 0) VerticalDivider(colors.DimText)
+                SuggestionChip(text = word, color = colors.KeyText) {
+                    onWordSelected(word)
+                }
+            }
+            val visibleEmojis = emojis.take(2)
+            visibleEmojis.forEach { emoji ->
+                VerticalDivider(colors.DimText)
+                SuggestionChip(text = emoji, color = colors.KeyText) {
+                    onEmojiSelected(emoji)
+                }
+            }
+        }
+
+        VerticalDivider(colors.DimText)
+
+        // Right: AI Grammar Check button — animated gradient while checking
+        AiGradientPill(
+            isChecking = isChecking,
+            checkFailed = checkFailed,
+            idleColor = colors.KeyBg,
+            iconColor = colors.KeyText
+        ) {
+            onTap()
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            onAiTapped()
+        }
+    }
+}
+
+@Composable
+private fun AiGradientPill(
+    isChecking: Boolean,
+    checkFailed: Boolean,
+    idleColor: Color,
+    iconColor: Color,
+    onClick: () -> Unit
+) {
+    val transition = rememberInfiniteTransition(label = "ai-gradient")
+    val shift by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1400, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "ai-shift"
+    )
+
+    val gradientColors = listOf(
+        Color(0xFF6F8B5C), // sage
+        Color(0xFF5CB4E6), // cyan
+        Color(0xFF8B5CE6), // purple
+        Color(0xFFE65C9F), // pink
+        Color(0xFFE6B85C), // amber
+        Color(0xFF6F8B5C)  // sage (loop)
+    )
+
+    val errorColor = Color(0xFFD64545)
+    val animatedBorderBrush = remember(shift) {
+        val phase = shift * 600f
+        Brush.linearGradient(
+            colors = gradientColors,
+            start = Offset(phase, 0f),
+            end = Offset(phase + 300f, 120f)
+        )
+    }
+    val borderBrush = when {
+        isChecking -> animatedBorderBrush
+        checkFailed -> Brush.linearGradient(listOf(errorColor, errorColor))
+        else -> Brush.linearGradient(listOf(idleColor, idleColor))
+    }
+    val borderWidth = if (isChecking || checkFailed) 2.dp else 0.dp
+    val shape = RoundedCornerShape(18.dp)
+
+    Box(
+        modifier = Modifier
+            .padding(start = 4.dp)
+            .height(36.dp)
+            .widthIn(min = 52.dp)
+            .clip(shape)
+            .background(idleColor)
+            .border(width = borderWidth, brush = borderBrush, shape = shape)
+            .clickable { onClick() }
+            .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = when {
+                checkFailed -> "!"
+                else -> "✨"
+            },
+            fontSize = 18.sp,
+            color = if (checkFailed) errorColor else iconColor
+        )
+    }
+}
+
+@Composable
+private fun RowScope.VerticalDivider(color: Color) {
+    Box(
+        Modifier
+            .padding(horizontal = 4.dp)
+            .width(1.dp)
+            .height(20.dp)
+            .background(color.copy(alpha = 0.4f))
+    )
+}
+
+@Composable
+private fun RowScope.SuggestionChip(text: String, color: Color, onClick: () -> Unit) {
+    val haptic = LocalHapticFeedback.current
+    Box(
+        modifier = Modifier
+            .weight(1f, fill = false)
+            .padding(horizontal = 6.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .clickable {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onClick()
+            }
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            color = color,
+            fontSize = 15.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+// ── Reusable Key Components ──────────────────────────────
+
 @Composable
 fun KeyRow(
     keys: List<String>,
@@ -416,11 +978,29 @@ fun KeyRow(
 }
 
 @Composable
+fun SymbolKeyRow(keys: List<String>, onKey: (String) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp),
+        horizontalArrangement = Arrangement.Center
+    ) {
+        keys.forEach { sym ->
+            KeyButton(
+                label = sym,
+                modifier = Modifier.weight(1f),
+                fontSize = 18
+            ) { onKey(sym) }
+        }
+    }
+}
+
+@Composable
 fun KeyButton(
     label: String,
     modifier: Modifier = Modifier,
     bgColor: Color = KeyboardColors.current.KeyBg,
-    fontSize: Int = 18,
+    fontSize: Int = 20,
     onClick: () -> Unit
 ) {
     val colors = KeyboardColors.current
@@ -430,15 +1010,15 @@ fun KeyButton(
 
     Box(
         modifier = modifier
-            .height(52.dp)
+            .height(54.dp)
             .padding(3.dp)
-            .clip(RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(10.dp))
             .background(if (isPressed) colors.KeyPressed else bgColor)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null
             ) {
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 onClick()
             },
         contentAlignment = Alignment.Center
@@ -456,26 +1036,151 @@ fun KeyButton(
 
 @Composable
 fun RowScope.SpecialKey(
-    label: String,
+    label: String = "",
+    painter: Painter? = null,
+    iconSize: Dp = 22.dp,
     weight: Float,
-    bgColor: Color = KeyboardColors.current.KeyBg,
+    bgColor: Color = KeyboardColors.current.SpecialKeyBg,
+    fontSize: Int = 16,
     onClick: () -> Unit
 ) {
     val colors = KeyboardColors.current
     val haptic = LocalHapticFeedback.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
     Box(
         modifier = Modifier
             .weight(weight)
-            .height(52.dp)
+            .height(54.dp)
             .padding(3.dp)
-            .clip(RoundedCornerShape(6.dp))
-            .background(bgColor)
-            .clickable {
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (isPressed) colors.KeyPressed else bgColor)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 onClick()
             },
         contentAlignment = Alignment.Center
     ) {
-        Text(label, color = colors.KeyText, fontSize = 16.sp)
+        if (painter != null) {
+            Icon(
+                painter = painter,
+                contentDescription = label.ifEmpty { null },
+                tint = colors.KeyText,
+                modifier = Modifier.size(iconSize)
+            )
+        } else {
+            Text(label, color = colors.KeyText, fontSize = fontSize.sp)
+        }
+    }
+}
+
+@Composable
+fun RowScope.RepeatableSpecialKey(
+    label: String = "",
+    painter: Painter? = null,
+    iconSize: Dp = 22.dp,
+    weight: Float,
+    bgColor: Color = KeyboardColors.current.SpecialKeyBg,
+    initialDelay: Long = 400L,
+    repeatInterval: Long = 50L,
+    onAction: () -> Unit
+) {
+    val colors = KeyboardColors.current
+    val haptic = LocalHapticFeedback.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    LaunchedEffect(isPressed) {
+        if (isPressed) {
+            delay(initialDelay)
+            while (true) {
+                onAction()
+                delay(repeatInterval)
+            }
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .weight(weight)
+            .height(54.dp)
+            .padding(3.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (isPressed) colors.KeyPressed else bgColor)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onAction()
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        if (painter != null) {
+            Icon(
+                painter = painter,
+                contentDescription = label.ifEmpty { null },
+                tint = colors.KeyText,
+                modifier = Modifier.size(iconSize)
+            )
+        } else {
+            Text(label, color = colors.KeyText, fontSize = 16.sp)
+        }
+    }
+}
+
+@Composable
+fun RepeatableBoxKey(
+    label: String = "",
+    painter: Painter? = null,
+    iconSize: Dp = 22.dp,
+    bgColor: Color = KeyboardColors.current.SpecialKeyBg,
+    initialDelay: Long = 400L,
+    repeatInterval: Long = 50L,
+    onAction: () -> Unit
+) {
+    val colors = KeyboardColors.current
+    val haptic = LocalHapticFeedback.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    LaunchedEffect(isPressed) {
+        if (isPressed) {
+            delay(initialDelay)
+            while (true) {
+                onAction()
+                delay(repeatInterval)
+            }
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (isPressed) colors.KeyPressed else bgColor)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onAction()
+            }
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        if (painter != null) {
+            Icon(
+                painter = painter,
+                contentDescription = label.ifEmpty { null },
+                tint = colors.KeyText,
+                modifier = Modifier.size(iconSize)
+            )
+        } else {
+            Text(label, color = colors.KeyText, fontSize = 18.sp)
+        }
     }
 }

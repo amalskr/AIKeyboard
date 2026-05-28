@@ -1,0 +1,65 @@
+name: Test Build APK
+
+on:
+  push:
+    branches: [ development ]
+
+jobs:
+  build-test-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Decode keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/keystore/ai_gammer.jks
+
+      - name: Create local.properties
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> local.properties
+          echo "KEYSTORE_FILE=keystore/ai_gammer.jks" >> local.properties
+          echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> local.properties
+          echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> local.properties
+          echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> local.properties
+
+      - name: Build production release APK
+        run: ./gradlew assembleProductionRelease
+
+      - name: Extract version and rename APK
+        id: version
+        run: |
+          VERSION_CODE=$(grep -oP 'versionCode\s*=\s*\K\d+' app/build.gradle.kts)
+          VERSION_NAME=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
+          APK_NAME="v${VERSION_CODE}(${VERSION_NAME})_live.apk"
+          TAG="v${VERSION_NAME}-build.${VERSION_CODE}.$(echo ${{ github.sha }} | cut -c1-7)"
+          cp app/build/outputs/apk/production/release/app-production-release.apk "app/build/outputs/apk/production/release/${APK_NAME}"
+          echo "apk_name=${APK_NAME}" >> $GITHUB_OUTPUT
+          echo "version_name=${VERSION_NAME}" >> $GITHUB_OUTPUT
+          echo "version_code=${VERSION_CODE}" >> $GITHUB_OUTPUT
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+
+      - name: Upload production APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.version.outputs.apk_name }}
+          path: app/build/outputs/apk/production/release/${{ steps.version.outputs.apk_name }}
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            "app/build/outputs/apk/production/release/${{ steps.version.outputs.apk_name }}" \
+            --title "Dev Build v${{ steps.version.outputs.version_name }} (${{ steps.version.outputs.version_code }})" \
+            --notes "Development build from \`${{ github.sha }}\`" \
+            --prerelease

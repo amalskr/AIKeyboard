@@ -1,10 +1,14 @@
 package com.ceylonapz.aikeyboard
 
+import android.content.ClipboardManager
 import android.content.Context
 import android.inputmethodservice.InputMethodService
+import android.os.Build
 import android.os.Vibrator
+import android.os.VibratorManager
 import android.view.KeyEvent
 import android.view.View
+import android.view.inputmethod.InputMethodManager
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -51,8 +55,25 @@ class AIKeyboardService : InputMethodService(),
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
 
-        @Suppress("DEPRECATION")
-        viewModel.vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        viewModel.vibrator = resolveVibrator()
+        viewModel.usageStats = UsageStats(applicationContext)
+    }
+
+    private fun readClipboard(): String? {
+        val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return null
+        val clip = cm.primaryClip ?: return null
+        if (clip.itemCount == 0) return null
+        return clip.getItemAt(0)?.coerceToText(this)?.toString()
+    }
+
+    private fun resolveVibrator(): Vibrator? {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            (getSystemService(Context.VIBRATOR_MANAGER_SERVICE)
+                    as? VibratorManager)?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        }
     }
 
     override fun onCreateInputView(): View {
@@ -76,16 +97,22 @@ class AIKeyboardService : InputMethodService(),
                         },
                         onSendEnter = {
                             currentInputConnection?.sendKeyEvent(
-                                KeyEvent(
-                                    KeyEvent.ACTION_DOWN,
-                                    KeyEvent.KEYCODE_ENTER
-                                )
+                                KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER)
+                            )
+                            currentInputConnection?.sendKeyEvent(
+                                KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER)
                             )
                         },
                         onDeleteSurrounding = { len ->
                             currentInputConnection
                                 ?.deleteSurroundingText(len, 0)
-                        }
+                        },
+                        onLanguageSwitch = {
+                            (getSystemService(Context.INPUT_METHOD_SERVICE)
+                                    as? InputMethodManager)
+                                ?.showInputMethodPicker()
+                        },
+                        readClipboard = { readClipboard() }
                     )
                 }
             }

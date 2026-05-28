@@ -8,3 +8,15 @@ data class GrammarResult(
     val correctedText: String,
     val is_error: Boolean,
 )
+
+@Serializable
+data class ReplyResult(
+    val replies: List<String>,
+)
+
+enum class KeyboardMode {
+    QWERTY,
+    SYMBOLS_1,
+    SYMBOLS_2,
+    EMOJI
+}
