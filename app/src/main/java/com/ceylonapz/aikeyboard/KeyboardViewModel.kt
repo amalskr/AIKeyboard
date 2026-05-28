@@ -8,7 +8,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class KeyboardViewModel : ViewModel() {
@@ -19,13 +18,24 @@ class KeyboardViewModel : ViewModel() {
 
     var vibrator: Vibrator? = null
 
+    fun vibrateKey() {
+        vibrator?.let {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                it.vibrate(VibrationEffect.createOneShot(30, 80))
+            } else {
+                @Suppress("DEPRECATION")
+                it.vibrate(30)
+            }
+        }
+    }
+
     private fun vibrateLong() {
         vibrator?.let {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                it.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
+                it.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
             } else {
                 @Suppress("DEPRECATION")
-                it.vibrate(200)
+                it.vibrate(100)
             }
         }
     }
@@ -33,53 +43,83 @@ class KeyboardViewModel : ViewModel() {
     val sentenceBuffer = StringBuilder()
     val grammarResult = mutableStateOf<GrammarResult?>(null)
     val isChecking = mutableStateOf(false)
-    val statusMessage = mutableStateOf("")
     val isShiftOn = mutableStateOf(false)
     val isConnected = mutableStateOf(true)
+    val keyboardMode = mutableStateOf(KeyboardMode.QWERTY)
 
     private val geminiClient = GeminiClient()
     private val emojiSuggester = EmojiSuggester()
+    private val wordSuggester = WordSuggester()
     val emojiSuggestions = mutableStateOf<List<String>>(emptyList())
+    val wordSuggestions = mutableStateOf<List<String>>(emptyList())
     private var checkJob: Job? = null
-    private var statusJob: Job? = null
-    private var autoDismissJob: Job? = null
+    private var lastCheckedText = ""
 
-    private val checkingMessages = listOf(
-        "🔍 Analyzing text...",
-        "📝 Checking grammar...",
-        "🧠 Processing sentences...",
-        "📖 Reviewing structure...",
-        "✍️ Inspecting spelling...",
-        "🔤 Validating words...",
-        "💬 Almost done..."
-    )
+    // ── Mode switching ────────────────────────────────────
+    fun switchToQwerty() {
+        vibrateKey()
+        keyboardMode.value = KeyboardMode.QWERTY
+    }
+
+    fun switchToSymbols() {
+        vibrateKey()
+        keyboardMode.value = KeyboardMode.SYMBOLS_1
+    }
+
+    fun toggleSymbolPage() {
+        vibrateKey()
+        keyboardMode.value = when (keyboardMode.value) {
+            KeyboardMode.SYMBOLS_1 -> KeyboardMode.SYMBOLS_2
+            KeyboardMode.SYMBOLS_2 -> KeyboardMode.SYMBOLS_1
+            else -> KeyboardMode.SYMBOLS_1
+        }
+    }
+
+    fun switchToEmoji() {
+        vibrateKey()
+        keyboardMode.value = KeyboardMode.EMOJI
+    }
+
+    fun onLanguageSwitchTapped(showPicker: () -> Unit) {
+        vibrateKey()
+        showPicker()
+    }
+
+    fun onSymbolTyped(symbol: String, commitText: (String) -> Unit) {
+        if (isChecking.value) return
+        vibrateKey()
+        commitText(symbol)
+        sentenceBuffer.append(symbol)
+    }
 
     // ── Key handlers ───────────────────────────────────────
     fun onPeriodTyped(commitText: (String) -> Unit) {
         if (isChecking.value) return
+        vibrateKey()
         commitText(".")
         sentenceBuffer.append(".")
     }
 
     fun onQuestionMarkTyped(commitText: (String) -> Unit) {
         if (isChecking.value) return
+        vibrateKey()
         commitText("?")
         sentenceBuffer.append("?")
     }
 
     fun onExclamationTyped(commitText: (String) -> Unit) {
         if (isChecking.value) return
+        vibrateKey()
         commitText("!")
         sentenceBuffer.append("!")
     }
 
     fun onGrammarCheckTapped() {
+        vibrateLong()
         if (isChecking.value) {
             // Stop the ongoing check and re-enable typing
             checkJob?.cancel()
-            statusJob?.cancel()
             isChecking.value = false
-            statusMessage.value = ""
         } else {
             triggerGrammarCheck()
         }
@@ -87,89 +127,99 @@ class KeyboardViewModel : ViewModel() {
 
     fun onCharTyped(char: Char, commitText: (String) -> Unit) {
         if (isChecking.value) return
+        vibrateKey()
         val c = if (isShiftOn.value) char.uppercaseChar() else char.lowercaseChar()
         commitText(c.toString())
         sentenceBuffer.append(c)
         isShiftOn.value = false
+        updateWordSuggestions()
     }
 
     fun onSpaceTyped(commitText: (String) -> Unit) {
         if (isChecking.value) return
+        vibrateKey()
         commitText(" ")
         sentenceBuffer.append(" ")
+        wordSuggestions.value = emptyList()
         updateEmojiSuggestions()
     }
 
     fun onDeleteTyped(deleteOne: () -> Unit) {
         if (isChecking.value) return
+        vibrateKey()
         deleteOne()
         if (sentenceBuffer.isNotEmpty()) {
             sentenceBuffer.deleteCharAt(sentenceBuffer.length - 1)
         }
         grammarResult.value = null
-        statusMessage.value = ""
         emojiSuggestions.value = emptyList()
+        updateWordSuggestions()
     }
 
     fun onShiftToggle() {
+        vibrateKey()
         isShiftOn.value = !isShiftOn.value
     }
 
     fun onEnter(sendEnter: () -> Unit) {
         if (isChecking.value) return
+        vibrateKey()
         sendEnter()
         sentenceBuffer.clear()
+        lastCheckedText = ""
         grammarResult.value = null
-        statusMessage.value = ""
     }
 
     // ── Grammar Check via Gemini ───────────────────────────
     private fun triggerGrammarCheck() {
-        val text = sentenceBuffer.toString().trim()
-        Log.d(TAG, "🔵 Punctuation typed! Buffer: '$text'")
+        val fullText = sentenceBuffer.toString().trim()
+        Log.d(TAG, "Grammar check requested. Buffer: '$fullText'")
 
-        if (text.length < 4) {
-            Log.d(TAG, "🔵 Too short (${text.length} chars), skipping")
+        if (fullText.length < 4) {
+            Log.d(TAG, "Too short (${fullText.length} chars), skipping")
             return
         }
 
-        checkJob?.cancel()
-        statusJob?.cancel()
-        isChecking.value = true
-        Log.d(TAG, "🔵 Starting Gemini grammar check...")
-
-        // Cycle through status messages while checking
-        statusJob = viewModelScope.launch {
-            var index = 0
-            while (true) {
-                statusMessage.value = checkingMessages[index % checkingMessages.size]
-                index++
-                delay(800)
-            }
+        // Skip if text hasn't changed since last check
+        if (fullText == lastCheckedText) {
+            Log.d(TAG, "Text unchanged, skipping re-check")
+            return
         }
+
+        // Only send new text if buffer starts with already-checked prefix
+        val textToCheck = if (lastCheckedText.isNotEmpty() && fullText.startsWith(lastCheckedText)) {
+            val newPart = fullText.substring(lastCheckedText.length).trim()
+            Log.d(TAG, "Incremental check, new part: '$newPart'")
+            if (newPart.length < 4) {
+                Log.d(TAG, "New part too short (${newPart.length} chars), skipping")
+                return
+            }
+            newPart
+        } else {
+            fullText
+        }
+
+        checkJob?.cancel()
+        isChecking.value = true
+        Log.d(TAG, "Sending to Gemini: '$textToCheck'")
 
         checkJob = viewModelScope.launch {
             try {
-                val result = geminiClient.checkGrammar(text)
-                Log.d(TAG, "🔵 Result: is_error=${result.is_error}, corrected='${result.correctedText}'")
+                val result = geminiClient.checkGrammar(textToCheck)
+                Log.d(TAG, "Result: is_error=${result.is_error}, corrected='${result.correctedText}'")
 
-                statusJob?.cancel()
                 grammarResult.value = result
                 isConnected.value = true
 
-                statusMessage.value = if (result.is_error) {
-                    "✏️ Grammar issue found"
-                } else {
-                    "✅ Looks good!"
+                if (!result.is_error) {
+                    // No errors — mark the full buffer as checked
+                    lastCheckedText = fullText
                 }
-                if (!result.is_error) autoDismissStatus()
                 vibrateLong()
 
             } catch (e: Exception) {
-                Log.e(TAG, "🔵 Check failed: ${e.message}", e)
-                statusJob?.cancel()
+                Log.e(TAG, "Check failed: ${e.message}", e)
                 grammarResult.value = null
-                statusMessage.value = "⚠️ Check failed"
                 isConnected.value = false
                 vibrateLong()
             } finally {
@@ -184,39 +234,65 @@ class KeyboardViewModel : ViewModel() {
         commitText: (String) -> Unit
     ) {
         val result = grammarResult.value ?: return
-        Log.d(TAG, "🟢 Applying: '${result.originalText}' → '${result.correctedText}'")
-        deleteSurrounding(result.originalText.length)
-        commitText(result.correctedText)
-        sentenceBuffer.clear()
-        sentenceBuffer.append(result.correctedText)
-        grammarResult.value = null
-        statusMessage.value = "✅ Corrected!"
-        autoDismissStatus()
-    }
+        Log.d(TAG, "Applying: '${result.originalText}' -> '${result.correctedText}'")
 
-    private fun autoDismissStatus(delayMs: Long = 2000L) {
-        autoDismissJob?.cancel()
-        autoDismissJob = viewModelScope.launch {
-            delay(delayMs)
-            statusMessage.value = ""
+        // Build the new full text: checked prefix + corrected new part
+        val fullText = sentenceBuffer.toString().trim()
+        val newFullText = if (lastCheckedText.isNotEmpty() && fullText.startsWith(lastCheckedText)) {
+            lastCheckedText + result.correctedText
+        } else {
+            result.correctedText
         }
+
+        deleteSurrounding(fullText.length)
+        commitText(newFullText)
+        sentenceBuffer.clear()
+        sentenceBuffer.append(newFullText)
+        lastCheckedText = newFullText
+        grammarResult.value = null
     }
 
     fun dismissSuggestion() {
+        // Mark current buffer as checked so it won't re-check on dismiss
+        lastCheckedText = sentenceBuffer.toString().trim()
         grammarResult.value = null
-        statusMessage.value = ""
+    }
+
+    // ── Word suggestions ──────────────────────────────────
+    private fun updateWordSuggestions() {
+        val text = sentenceBuffer.toString()
+        val lastWord = text.split(" ").lastOrNull() ?: ""
+        wordSuggestions.value = if (lastWord.length >= 2) {
+            wordSuggester.suggest(lastWord)
+        } else {
+            emptyList()
+        }
+    }
+
+    fun onWordSelected(word: String, commitText: (String) -> Unit) {
+        vibrateKey()
+        val text = sentenceBuffer.toString()
+        val lastWord = text.split(" ").lastOrNull() ?: ""
+        if (lastWord.isNotEmpty()) {
+            // Complete the remaining part of the word + add space
+            val remaining = word.substring(lastWord.length)
+            commitText("$remaining ")
+            sentenceBuffer.append("$remaining ")
+        }
+        wordSuggestions.value = emptyList()
     }
 
     // ── Emoji suggestion for last word ─────────────────────
     private fun updateEmojiSuggestions() {
         val text = sentenceBuffer.toString().trimEnd()
         val lastWord = text.split(" ").lastOrNull() ?: ""
-        Log.d(TAG, "🟡 Emoji check for word: '$lastWord'")
+        Log.d(TAG, "Emoji check for word: '$lastWord'")
         emojiSuggestions.value = emojiSuggester.suggest(lastWord)
-        Log.d(TAG, "🟡 Emoji suggestions: ${emojiSuggestions.value}")
+        Log.d(TAG, "Emoji suggestions: ${emojiSuggestions.value}")
     }
 
     fun onEmojiSelected(emoji: String, commitText: (String) -> Unit) {
+        vibrateKey()
         commitText("$emoji ")
         sentenceBuffer.append("$emoji ")
         emojiSuggestions.value = emptyList()

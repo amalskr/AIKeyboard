@@ -1,9 +1,12 @@
 package com.ceylonapz.aikeyboard
 
+import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -75,15 +78,7 @@ fun SetupScreen() {
 
     // Check keyboard status when screen resumes
     LaunchedEffect(Unit) {
-        val myId = "${ctx.packageName}/.AIKeyboardService"
-        isEnabled.value = Settings.Secure.getString(
-            ctx.contentResolver,
-            Settings.Secure.ENABLED_INPUT_METHODS
-        )?.contains(myId) == true
-        isSelected.value = Settings.Secure.getString(
-            ctx.contentResolver,
-            Settings.Secure.DEFAULT_INPUT_METHOD
-        )?.contains(myId) == true
+        refreshKeyboardStatus(ctx, isEnabled, isSelected)
     }
 
     Box(
@@ -139,7 +134,18 @@ fun SetupScreen() {
                 buttonText = if (isEnabled.value) "Enabled ✓" else "Open Settings",
                 isDark = isDark,
                 onClick = {
-                    ctx.startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
+                    try {
+                        ctx.startActivity(
+                            Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    } catch (e: ActivityNotFoundException) {
+                        Toast.makeText(
+                            ctx,
+                            "Couldn't open keyboard settings on this device.",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
                 }
             )
 
@@ -155,8 +161,17 @@ fun SetupScreen() {
                 enabled = isEnabled.value,
                 isDark = isDark,
                 onClick = {
-                    val imm = ctx.getSystemService(InputMethodManager::class.java)
-                    imm.showInputMethodPicker()
+                    val imm = ctx.getSystemService(Context.INPUT_METHOD_SERVICE)
+                            as? InputMethodManager
+                    if (imm != null) {
+                        imm.showInputMethodPicker()
+                    } else {
+                        Toast.makeText(
+                            ctx,
+                            "Keyboard picker not available on this device.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 }
             )
 
@@ -178,17 +193,7 @@ fun SetupScreen() {
 
             // Refresh status button
             OutlinedButton(
-                onClick = {
-                    val myId = "${ctx.packageName}/.AIKeyboardService"
-                    isEnabled.value = Settings.Secure.getString(
-                        ctx.contentResolver,
-                        Settings.Secure.ENABLED_INPUT_METHODS
-                    )?.contains(myId) == true
-                    isSelected.value = Settings.Secure.getString(
-                        ctx.contentResolver,
-                        Settings.Secure.DEFAULT_INPUT_METHOD
-                    )?.contains(myId) == true
-                },
+                onClick = { refreshKeyboardStatus(ctx, isEnabled, isSelected) },
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = subtitleColor
                 )
@@ -292,6 +297,29 @@ fun SampleTextField() {
         placeholder = { Text("Type something...") },
         singleLine = true
     )
+}
+
+private fun refreshKeyboardStatus(
+    ctx: Context,
+    isEnabled: androidx.compose.runtime.MutableState<Boolean>,
+    isSelected: androidx.compose.runtime.MutableState<Boolean>
+) {
+    try {
+        val pkg = ctx.packageName
+        val enabled = Settings.Secure.getString(
+            ctx.contentResolver,
+            Settings.Secure.ENABLED_INPUT_METHODS
+        ).orEmpty()
+        val default = Settings.Secure.getString(
+            ctx.contentResolver,
+            Settings.Secure.DEFAULT_INPUT_METHOD
+        ).orEmpty()
+        isEnabled.value = enabled.contains("$pkg/")
+        isSelected.value = default.startsWith("$pkg/")
+    } catch (_: Throwable) {
+        isEnabled.value = false
+        isSelected.value = false
+    }
 }
 
 @Preview(showBackground = true)
