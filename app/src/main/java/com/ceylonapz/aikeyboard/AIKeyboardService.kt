@@ -56,6 +56,7 @@ class AIKeyboardService : InputMethodService(),
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
 
         viewModel.vibrator = resolveVibrator()
+        viewModel.usageStats = UsageStats(applicationContext)
     }
 
     private fun readClipboard(): String? {

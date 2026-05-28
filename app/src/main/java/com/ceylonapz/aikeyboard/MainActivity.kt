@@ -3,8 +3,10 @@ package com.ceylonapz.aikeyboard
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.provider.Settings
+import android.text.format.DateUtils
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -34,6 +36,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -195,6 +198,11 @@ fun SetupScreen() {
                 isDark = isDark,
                 onClick = { }
             )
+
+            Spacer(Modifier.height(16.dp))
+
+            // ── Usage card ─────────────────────────────────
+            UsageCard(isDark = isDark)
 
             Spacer(Modifier.height(48.dp))
 
@@ -426,6 +434,146 @@ private fun GrammarErrorCard(message: String, isDark: Boolean) {
     ) {
         Text("Check failed", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = labelColor)
         Text(message, fontSize = 12.sp, color = bodyColor)
+    }
+}
+
+@Composable
+fun UsageCard(isDark: Boolean) {
+    val ctx = LocalContext.current
+    val stats = remember { UsageStats(ctx) }
+    var snapshot by remember { mutableStateOf(stats.snapshot()) }
+
+    DisposableEffect(stats) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+            snapshot = stats.snapshot()
+        }
+        stats.registerListener(listener)
+        snapshot = stats.snapshot()
+        onDispose { stats.unregisterListener(listener) }
+    }
+
+    val bg = if (isDark) Color(0xFF16213E) else Color(0xFFFFFFFF)
+    val titleColor = if (isDark) Color.White else Color(0xFF1A1A2E)
+    val descColor = if (isDark) Color(0xFF888899) else Color(0xFF666677)
+    val accent = Color(0xFF7C5CFC)
+    val numberColor = if (isDark) Color.White else Color(0xFF1A1A2E)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(bg)
+            .padding(16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(accent),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("✨", fontSize = 18.sp)
+            }
+            Spacer(Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "AI Usage",
+                    color = titleColor,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp
+                )
+                Text(
+                    "How often you've used Gemini-powered features",
+                    color = descColor,
+                    fontSize = 12.sp
+                )
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Headline: total prompts
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                snapshot.totalPrompts.toString(),
+                color = accent,
+                fontSize = 36.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "total prompts",
+                color = descColor,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // Breakdown rows
+        UsageStatRow(
+            label = "Grammar checks",
+            value = snapshot.grammarChecks,
+            secondary = "${snapshot.fixesApplied} fix${if (snapshot.fixesApplied == 1) "" else "es"} applied",
+            titleColor = numberColor,
+            descColor = descColor
+        )
+        Spacer(Modifier.height(8.dp))
+        UsageStatRow(
+            label = "Smart replies",
+            value = snapshot.smartReplies,
+            secondary = "${snapshot.repliesUsed} chosen",
+            titleColor = numberColor,
+            descColor = descColor
+        )
+
+        if (snapshot.lastUsedAt > 0L) {
+            Spacer(Modifier.height(12.dp))
+            val relative = DateUtils.getRelativeTimeSpanString(
+                snapshot.lastUsedAt,
+                System.currentTimeMillis(),
+                DateUtils.MINUTE_IN_MILLIS
+            ).toString()
+            Text(
+                "Last used $relative",
+                color = descColor,
+                fontSize = 11.sp
+            )
+        } else {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "No prompts yet — type with errors and tap ✨, or copy a message and tap 💬.",
+                color = descColor,
+                fontSize = 11.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun UsageStatRow(
+    label: String,
+    value: Int,
+    secondary: String,
+    titleColor: Color,
+    descColor: Color,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label, color = titleColor, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            Text(secondary, color = descColor, fontSize = 11.sp)
+        }
+        Text(
+            value.toString(),
+            color = titleColor,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
 

@@ -20,6 +20,7 @@ class KeyboardViewModel : ViewModel() {
     }
 
     var vibrator: Vibrator? = null
+    var usageStats: UsageStats? = null
 
     fun vibrateKey() = doVibrate(durationMs = 55)
 
@@ -174,6 +175,9 @@ class KeyboardViewModel : ViewModel() {
             try {
                 val replies = geminiClient.suggestReplies(incoming, intent)
                 replySuggestions.value = replies
+                if (replies.isNotEmpty()) {
+                    usageStats?.recordSmartReply()
+                }
                 if (replies.isEmpty()) {
                     replyFailed.value = "No suggestions returned"
                     viewModelScope.launch {
@@ -215,6 +219,7 @@ class KeyboardViewModel : ViewModel() {
         grammarResult.value = null
         wordSuggestions.value = emptyList()
         emojiSuggestions.value = emptyList()
+        usageStats?.recordReplyUsed()
     }
 
     fun dismissReplies() {
@@ -307,6 +312,7 @@ class KeyboardViewModel : ViewModel() {
 
                 grammarResult.value = result
                 isConnected.value = true
+                usageStats?.recordGrammarCheck()
 
                 if (!result.is_error) {
                     // No errors — mark the full buffer as checked
@@ -353,6 +359,7 @@ class KeyboardViewModel : ViewModel() {
         sentenceBuffer.append(newFullText)
         lastCheckedText = newFullText
         grammarResult.value = null
+        usageStats?.recordFixApplied()
     }
 
     fun dismissSuggestion() {
