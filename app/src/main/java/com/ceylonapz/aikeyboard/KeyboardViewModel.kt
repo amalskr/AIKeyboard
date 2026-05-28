@@ -163,14 +163,16 @@ class KeyboardViewModel : ViewModel() {
             return
         }
 
+        val intent = sentenceBuffer.toString().trim()
+
         replyJob?.cancel()
         replyFailed.value = null
         isGeneratingReplies.value = true
-        Log.d(TAG, "Smart reply for: '$incoming'")
+        Log.d(TAG, "Smart reply incoming='$incoming' intent='$intent'")
 
         replyJob = viewModelScope.launch {
             try {
-                val replies = geminiClient.suggestReplies(incoming)
+                val replies = geminiClient.suggestReplies(incoming, intent)
                 replySuggestions.value = replies
                 if (replies.isEmpty()) {
                     replyFailed.value = "No suggestions returned"
@@ -194,12 +196,25 @@ class KeyboardViewModel : ViewModel() {
         }
     }
 
-    fun onReplySelected(reply: String, commitText: (String) -> Unit) {
+    fun onReplySelected(
+        reply: String,
+        deleteSurrounding: (Int) -> Unit,
+        commitText: (String) -> Unit
+    ) {
         vibrateKey()
+        // Replace the user's rough draft (if any) with the polished reply
+        val draftLen = sentenceBuffer.length
+        if (draftLen > 0) {
+            deleteSurrounding(draftLen)
+        }
         commitText(reply)
+        sentenceBuffer.clear()
         sentenceBuffer.append(reply)
         replySuggestions.value = emptyList()
-        lastCheckedText = sentenceBuffer.toString().trim()
+        lastCheckedText = reply
+        grammarResult.value = null
+        wordSuggestions.value = emptyList()
+        emojiSuggestions.value = emptyList()
     }
 
     fun dismissReplies() {

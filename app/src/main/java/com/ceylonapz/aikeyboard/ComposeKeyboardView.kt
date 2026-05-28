@@ -268,7 +268,7 @@ private fun ComposeKeyboardContent(
                 isGenerating = isGeneratingReplies,
                 errorMessage = replyFailed,
                 onReplySelected = { reply ->
-                    viewModel.onReplySelected(reply, onCommitText)
+                    viewModel.onReplySelected(reply, onDeleteSurrounding, onCommitText)
                 },
                 onDismiss = { viewModel.dismissReplies() }
             )

@@ -115,34 +115,60 @@ Output: {"originalText":"I'll meet you at","correctedText":"I'll meet you at","i
     private val replySystemInstruction: Content = content("system") {
         text(
             """
-You generate short, natural reply suggestions for a messaging conversation.
+You generate short, polished reply suggestions for a messaging conversation.
 
-INPUT: An incoming message someone just received.
+INPUT (two fields, the second is optional):
+- Incoming: the message the user just received
+- Intent: a rough, telegraphic draft of what the user wants to say (may have
+  typos, missing words, or be a single fragment). Optional.
+
 OUTPUT: Respond with ONE JSON object and nothing else. Schema:
 {
   "replies": ["<reply 1>", "<reply 2>", "<reply 3>"]
 }
 
-GUIDELINES
-- Exactly 3 distinct replies, each 1 short sentence under 12 words
-- Variety: include one brief/casual, one neutral, one warm or detailed
-- Match the tone, formality, and language of the incoming message
+RULES WHEN INTENT IS PROVIDED
+- ALL 3 replies must communicate the user's stated intent — never contradict it
+- Polish the draft: fix grammar, expand fragments ("im busy" -> "I'm busy"),
+  add helping words, capitalize, punctuate
+- Offer 3 distinct phrasings of the SAME intent at different registers:
+  one brief/casual, one neutral, one warm or with a reason
+- Reference the incoming message naturally where helpful
+- Do not invent new information not implied by the intent
+
+RULES WHEN INTENT IS EMPTY OR MISSING
+- Generate 3 contextually appropriate generic replies for the incoming message
+- Variety: brief, neutral, warm
+
+UNIVERSAL RULES
+- Each reply: 1 short sentence, under 14 words
+- Match the tone, formality, and language of the Incoming message
 - Never include placeholders like [name], "...", or template gaps
 - No commentary, no markdown fences — just the JSON object
 
 EXAMPLES
 
-Input: "Are you free tomorrow afternoon for a quick call?"
-Output: {"replies":["Yes, what time works?","Could we do morning instead?","Sure — I'm open after 2pm."]}
+Incoming: "Are you free tomorrow afternoon?"
+Intent: "im busy"
+Output: {"replies":["Sorry, I'm tied up tomorrow.","Unfortunately I'm booked then.","I'm slammed tomorrow — can we try Thursday?"]}
 
-Input: "I just got the job!! 🎉"
-Output: {"replies":["Congrats!","That's amazing — so happy for you!","Huge news! When do you start?"]}
+Incoming: "Are you free tomorrow afternoon?"
+Intent: "yes 3pm"
+Output: {"replies":["Yes, 3pm works.","Sure — see you at 3.","I'm free at 3pm, looking forward to it."]}
 
-Input: "running late, traffic is brutal"
+Incoming: "Are you free tomorrow afternoon?"
+Output: {"replies":["Yes, what time?","I'm tied up tomorrow.","Could we try another day?"]}
+
+Incoming: "I just got the job!! 🎉"
+Intent: "so happy congrats"
+Output: {"replies":["Congrats!","So happy for you — that's huge!","Amazing news — you absolutely earned it."]}
+
+Incoming: "can you grab milk on the way home"
+Intent: "yes"
+Output: {"replies":["Yes, on it.","Sure thing — anything else?","Yep, I'll pick it up in 20."]}
+
+Incoming: "running late, traffic is brutal"
 Output: {"replies":["No worries.","Take your time.","Thanks for the heads up — drive safe."]}
-
-Input: "can you grab milk on the way home"
-Output: {"replies":["Sure thing.","Anything else?","On it — be home in 20."]}
 """.trimIndent()
         )
     }
@@ -195,11 +221,18 @@ Output: {"replies":["Sure thing.","Anything else?","On it — be home in 20."]}
             finalResult
         }
 
-    suspend fun suggestReplies(incomingMessage: String): List<String> =
+    suspend fun suggestReplies(incomingMessage: String, intent: String = ""): List<String> =
         withContext(Dispatchers.IO) {
-            Log.d(TAG, "💬 Reply for: \"$incomingMessage\"")
+            Log.d(TAG, "💬 Reply for incoming=\"$incomingMessage\", intent=\"$intent\"")
 
-            val response = replyModel.generateContent("Input: \"$incomingMessage\"")
+            val prompt = buildString {
+                append("Incoming: \"$incomingMessage\"")
+                if (intent.isNotBlank()) {
+                    append('\n')
+                    append("Intent: \"$intent\"")
+                }
+            }
+            val response = replyModel.generateContent(prompt)
             val rawText = response.text.orEmpty()
 
             Log.d(TAG, "🌐 Raw reply response: $rawText")
