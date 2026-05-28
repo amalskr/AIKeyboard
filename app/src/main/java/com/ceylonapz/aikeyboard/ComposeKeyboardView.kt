@@ -232,7 +232,8 @@ private fun ComposeKeyboardContent(
                 onEmojiSelected = { emoji ->
                     viewModel.onEmojiSelected(emoji, onCommitText)
                 },
-                onAiTapped = { viewModel.onGrammarCheckTapped() }
+                onAiTapped = { viewModel.onGrammarCheckTapped() },
+                onTap = { viewModel.vibrateKey() }
             )
         }
 
@@ -519,7 +520,10 @@ private fun EmojiPickerLayout(
                             if (index == selectedCategory) colors.Accent.copy(alpha = 0.3f)
                             else Color.Transparent
                         )
-                        .clickable { selectedCategory = index },
+                        .clickable {
+                            viewModel.vibrateKey()
+                            selectedCategory = index
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(category.icon, fontSize = 20.sp)
@@ -656,7 +660,8 @@ fun GboardTopBar(
     isChecking: Boolean,
     onWordSelected: (String) -> Unit,
     onEmojiSelected: (String) -> Unit,
-    onAiTapped: () -> Unit
+    onAiTapped: () -> Unit,
+    onTap: () -> Unit
 ) {
     val colors = KeyboardColors.current
     val haptic = LocalHapticFeedback.current
@@ -674,6 +679,7 @@ fun GboardTopBar(
                 .size(40.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .clickable {
+                    onTap()
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 },
             contentAlignment = Alignment.Center
@@ -716,6 +722,7 @@ fun GboardTopBar(
                 .clip(RoundedCornerShape(18.dp))
                 .background(if (isChecking) Color(0xFFCC4444) else colors.KeyBg)
                 .clickable {
+                    onTap()
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     onAiTapped()
                 }

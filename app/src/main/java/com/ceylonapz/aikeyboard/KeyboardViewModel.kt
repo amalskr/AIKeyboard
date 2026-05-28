@@ -19,7 +19,7 @@ class KeyboardViewModel : ViewModel() {
 
     var vibrator: Vibrator? = null
 
-    private fun vibrateKey() {
+    fun vibrateKey() {
         vibrator?.let {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 it.vibrate(VibrationEffect.createOneShot(30, 80))
