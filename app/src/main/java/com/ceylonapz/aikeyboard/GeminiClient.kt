@@ -101,7 +101,7 @@ Output: {"originalText":"I'll meet you at","correctedText":"I'll meet you at","i
     }
 
     private val model = GenerativeModel(
-        modelName = "gemini-3-pro-preview",
+        modelName = "gemini-3.1-flash-lite",
         apiKey = BuildConfig.GEMINI_API_KEY,
         generationConfig = generationConfig {
             temperature = 0.4f
@@ -121,41 +121,31 @@ Output: {"originalText":"I'll meet you at","correctedText":"I'll meet you at","i
         withContext(Dispatchers.IO) {
             Log.d(TAG, "📝 Checking: \"$sentence\"")
 
-            try {
-                val response = model.generateContent("Input: \"$sentence\"")
-                val rawText = response.text.orEmpty()
+            val response = model.generateContent("Input: \"$sentence\"")
+            val rawText = response.text.orEmpty()
 
-                Log.d(TAG, "🌐 Raw response: $rawText")
+            Log.d(TAG, "🌐 Raw response: $rawText")
 
-                val cleanJson = extractJson(rawText)
-                Log.d(TAG, "📄 Clean JSON: $cleanJson")
+            val cleanJson = extractJson(rawText)
+            Log.d(TAG, "📄 Clean JSON: $cleanJson")
 
-                val result = json.decodeFromString<GrammarResult>(cleanJson)
+            val result = json.decodeFromString<GrammarResult>(cleanJson)
 
-                // Sanity check: if model claims an error but corrected == original, flip the flag
-                val finalResult = if (result.is_error &&
-                    result.correctedText.trim() == result.originalText.trim()
-                ) {
-                    result.copy(is_error = false)
-                } else if (!result.is_error &&
-                    result.correctedText.trim() != result.originalText.trim()
-                ) {
-                    result.copy(is_error = true)
-                } else {
-                    result
-                }
-
-                Log.d(TAG, "✅ is_error=${finalResult.is_error}, corrected='${finalResult.correctedText}'")
-                finalResult
-
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ GeminiClient error: ${e.message}", e)
-                GrammarResult(
-                    originalText = sentence,
-                    correctedText = sentence,
-                    is_error = false
-                )
+            // Sanity check: if model claims an error but corrected == original, flip the flag
+            val finalResult = if (result.is_error &&
+                result.correctedText.trim() == result.originalText.trim()
+            ) {
+                result.copy(is_error = false)
+            } else if (!result.is_error &&
+                result.correctedText.trim() != result.originalText.trim()
+            ) {
+                result.copy(is_error = true)
+            } else {
+                result
             }
+
+            Log.d(TAG, "✅ is_error=${finalResult.is_error}, corrected='${finalResult.correctedText}'")
+            finalResult
         }
 
     private fun extractJson(raw: String): String {

@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -36,7 +37,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -181,7 +184,7 @@ fun SetupScreen() {
             SetupStep(
                 stepNumber = 3,
                 title = "Try It Out",
-                description = "Type a sentence with errors and press '.' to check grammar",
+                description = "Type a sentence with errors and tap Send to test the grammar checker",
                 isDone = false,
                 buttonText = "Open any app and type!",
                 enabled = isSelected.value,
@@ -288,15 +291,138 @@ fun SetupStep(
 
 @Composable
 fun SampleTextField() {
-    var text by remember { mutableStateOf("") }
+    val isDark = isSystemInDarkTheme()
+    val accent = Color(0xFF7C5CFC)
+    val scope = rememberCoroutineScope()
+    val client = remember { GeminiClient() }
 
-    TextField(
-        value = text,
-        onValueChange = { text = it },
-        label = { Text("Enter text") },
-        placeholder = { Text("Type something...") },
-        singleLine = true
-    )
+    var text by remember { mutableStateOf("") }
+    var isChecking by remember { mutableStateOf(false) }
+    var result by remember { mutableStateOf<GrammarResult?>(null) }
+    var errorMsg by remember { mutableStateOf<String?>(null) }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextField(
+                value = text,
+                onValueChange = { text = it },
+                label = { Text("Enter text") },
+                placeholder = { Text("e.g. their going too the park") },
+                singleLine = true,
+                enabled = !isChecking,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(8.dp))
+            Button(
+                onClick = {
+                    val input = text.trim()
+                    if (input.isEmpty() || isChecking) return@Button
+                    result = null
+                    errorMsg = null
+                    isChecking = true
+                    scope.launch {
+                        try {
+                            result = client.checkGrammar(input)
+                        } catch (e: Exception) {
+                            errorMsg = "${e.javaClass.simpleName}: ${e.message ?: "Unknown error"}"
+                        } finally {
+                            isChecking = false
+                        }
+                    }
+                },
+                enabled = !isChecking && text.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = accent,
+                    disabledContainerColor = if (isDark) Color(0xFF333344) else Color(0xFFCCCCDD)
+                ),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                if (isChecking) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text("Send", fontSize = 13.sp)
+                }
+            }
+        }
+
+        val current = result
+        if (current != null) {
+            Spacer(Modifier.height(12.dp))
+            GrammarResultCard(current, isDark)
+        }
+
+        val err = errorMsg
+        if (err != null) {
+            Spacer(Modifier.height(12.dp))
+            GrammarErrorCard(err, isDark)
+        }
+    }
+}
+
+@Composable
+private fun GrammarResultCard(result: GrammarResult, isDark: Boolean) {
+    val hasError = result.is_error
+    val bg = if (hasError) {
+        if (isDark) Color(0xFF3E2E16) else Color(0xFFFFF3E0)
+    } else {
+        if (isDark) Color(0xFF1A2E1A) else Color(0xFFE8F5E9)
+    }
+    val labelColor = if (isDark) Color(0xFFAAAABB) else Color(0xFF666677)
+    val bodyColor = if (isDark) Color.White else Color(0xFF1A1A2E)
+    val highlight = Color(0xFF2E7D32)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(bg)
+            .padding(12.dp)
+    ) {
+        if (hasError) {
+            Text("Original", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = labelColor)
+            Text(result.originalText, fontSize = 13.sp, color = bodyColor)
+            Spacer(Modifier.height(8.dp))
+            Text("Corrected", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = labelColor)
+            Text(
+                result.correctedText,
+                fontSize = 13.sp,
+                color = highlight,
+                fontWeight = FontWeight.Medium
+            )
+        } else {
+            Text(
+                "✓ No grammar issues found",
+                fontSize = 13.sp,
+                color = highlight,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
+
+@Composable
+private fun GrammarErrorCard(message: String, isDark: Boolean) {
+    val bg = if (isDark) Color(0xFF3E1A1A) else Color(0xFFFFEBEE)
+    val labelColor = Color(0xFFB71C1C)
+    val bodyColor = if (isDark) Color.White else Color(0xFF1A1A2E)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(bg)
+            .padding(12.dp)
+    ) {
+        Text("Check failed", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = labelColor)
+        Text(message, fontSize = 12.sp, color = bodyColor)
+    }
 }
 
 private fun refreshKeyboardStatus(
