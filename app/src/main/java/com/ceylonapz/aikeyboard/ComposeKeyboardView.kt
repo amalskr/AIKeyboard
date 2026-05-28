@@ -670,6 +670,7 @@ fun SmartReplyBar(
     onDismiss: () -> Unit
 ) {
     val colors = KeyboardColors.current
+    val haptic = LocalHapticFeedback.current
 
     Row(
         modifier = Modifier
@@ -721,7 +722,10 @@ fun SmartReplyBar(
                     modifier = Modifier
                         .size(28.dp)
                         .clip(RoundedCornerShape(14.dp))
-                        .clickable { onDismiss() },
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onDismiss()
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Text("✕", color = colors.StatusGray, fontSize = 14.sp)
@@ -740,7 +744,7 @@ private fun ReplyChip(reply: String, onClick: () -> Unit) {
             .clip(RoundedCornerShape(16.dp))
             .background(colors.SpecialKeyBg)
             .clickable {
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 onClick()
             }
             .padding(horizontal = 12.dp, vertical = 6.dp)
@@ -789,7 +793,7 @@ fun GboardTopBar(
                     else Color.Transparent
                 )
                 .clickable {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     onSmartReplyTapped()
                 },
             contentAlignment = Alignment.Center
@@ -831,7 +835,7 @@ fun GboardTopBar(
             iconColor = colors.KeyText
         ) {
             onTap()
-            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             onAiTapped()
         }
     }
@@ -921,7 +925,7 @@ private fun RowScope.SuggestionChip(text: String, color: Color, onClick: () -> U
             .padding(horizontal = 6.dp)
             .clip(RoundedCornerShape(6.dp))
             .clickable {
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 onClick()
             }
             .padding(horizontal = 8.dp, vertical = 6.dp),
@@ -1002,7 +1006,7 @@ fun KeyButton(
                 interactionSource = interactionSource,
                 indication = null
             ) {
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 onClick()
             },
         contentAlignment = Alignment.Center
@@ -1042,7 +1046,7 @@ fun RowScope.SpecialKey(
                 interactionSource = interactionSource,
                 indication = null
             ) {
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 onClick()
             },
         contentAlignment = Alignment.Center
@@ -1086,7 +1090,7 @@ fun RowScope.RepeatableSpecialKey(
                 interactionSource = interactionSource,
                 indication = null
             ) {
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 onAction()
             },
         contentAlignment = Alignment.Center
@@ -1126,7 +1130,7 @@ fun RepeatableBoxKey(
                 interactionSource = interactionSource,
                 indication = null
             ) {
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 onAction()
             }
             .padding(horizontal = 16.dp, vertical = 10.dp),

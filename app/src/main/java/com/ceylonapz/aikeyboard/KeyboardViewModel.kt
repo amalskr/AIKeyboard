@@ -21,9 +21,9 @@ class KeyboardViewModel : ViewModel() {
 
     var vibrator: Vibrator? = null
 
-    fun vibrateKey() = doVibrate(durationMs = 35)
+    fun vibrateKey() = doVibrate(durationMs = 55)
 
-    private fun vibrateLong() = doVibrate(durationMs = 100)
+    private fun vibrateLong() = doVibrate(durationMs = 150)
 
     private fun doVibrate(durationMs: Long) {
         val v = vibrator ?: return

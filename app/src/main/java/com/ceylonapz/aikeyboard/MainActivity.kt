@@ -112,7 +112,7 @@ fun SetupScreen() {
                     painter = painterResource(R.mipmap.ic_launcher_foreground),
                     contentDescription = "AI Grammar Keyboard icon",
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(125.dp)
+                    modifier = Modifier.size(220.dp)
                 )
             }
 
